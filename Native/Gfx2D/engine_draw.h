@@ -48,6 +48,17 @@ typedef struct EngineLight2D {
     float half_w, half_h;
 } EngineLight2D;
 
+/* One camera's view, as crust's renderer reads it (gles3_render.h: one pass per camera). Copied from the packer's _ENGINE_CAMERA_TYPEDEF
+ * (tools/unity_pack.py in crust). The renderer's weak engine_collect_cameras answers 0 cameras, so the Camera_main_* globals alone are the view. */
+typedef struct EngineCamera {
+    float x, y;                           /* world position: the view's centre */
+    float half_h;                         /* orthographicSize */
+    float aspect;                         /* Camera.aspect; 0: the viewport's */
+    float rect_x, rect_y, rect_w, rect_h; /* Camera.rect, normalized */
+    float bg_r, bg_g, bg_b;               /* backgroundColor */
+    int clear;                            /* 1: clear to bg first (Solid Color / Skybox) */
+} EngineCamera;
+
 int engine_atlas_side(void);
 int engine_atlas_page_count(void);
 const unsigned char *engine_atlas_rgba(int page);        /* side * side RGBA8 */
