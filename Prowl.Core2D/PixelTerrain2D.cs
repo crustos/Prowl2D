@@ -48,6 +48,11 @@ internal sealed class PixelTerrain2D
     public bool PixelsDirty;
     public int DirtyX0, DirtyY0, DirtyX1, DirtyY1;
 
+    /// <summary>
+    /// The falling sand and flowing water of this layer, null until <see cref="EnableSand"/>. Its cells are this layer's pixels: air, stone, sand, water.
+    /// </summary>
+    public SandSim Sand;
+
     public bool Ok;                         // the layer was built
     public int ShapeCount;                  // live native shapes / chains over all chunks
 
@@ -275,6 +280,12 @@ internal sealed class PixelTerrain2D
             if (dig) SetPixel(x, y, 0, 0, 0, 0);
             else SetPixel(x, y, r, g, b, 255);
         }
+        if (Sand != null)                           // the cells follow: a dig clears sand and water too (they are not in the columns, or not yet), a build is stone
+        {
+            int element = dig ? SandSim.Air : SandSim.Stone;
+            for (int y = y0; y <= y1; y++) Sand.SetType(x, y, element);
+            if (dig) changed = true;
+        }
         if (changed) MarkDirty(x, y0, x, y1);
         return changed;
     }
@@ -290,6 +301,100 @@ internal sealed class PixelTerrain2D
         if (localX == c.Width - 1 && c.Right != null && c.Right.Columns[0].Touches(localY0, localY1)) c.Right.Dirty = true;
         if (localY0 == 0 && c.Down != null && c.Down.Columns[localX].isWithin(c.Down.Height - 1)) c.Down.Dirty = true;
         if (localY1 == c.Height - 1 && c.Up != null && c.Up.Columns[localX].isWithin(0)) c.Up.Dirty = true;
+    }
+
+    // ---- sand and water ------------------------------------------------------------------------
+
+    /// <summary>
+    /// Makes the pixels fall and flow: every pixel becomes a cell of the layer's <see cref="Sand"/> (stone where there is ground, else air), and
+    /// <see cref="SandStep"/> moves them. Call it after <see cref="Build"/>. Sand and water are pixels of the same bitmap, so they are drawn with it; sand that has
+    /// settled is ground (<see cref="IsSolid"/>, colliders), water is not.
+    /// </summary>
+    /// <returns>False if the layer is not built, or sand is already enabled.</returns>
+    public bool EnableSand()
+    {
+        if (!Ok || Sand != null) return false;
+        Sand = new SandSim(Width, Height, ChunksX, ChunksY);
+        for (int y = 0; y < Height; y++)
+            for (int x = 0; x < Width; x++)
+                if (IsSolid(x, y)) Sand.SetRaw(y * Width + x, SandSim.Stone);
+        return true;
+    }
+
+    /// <summary>
+    /// One step of the sand and water. The chunks whose ground has been still for a few steps (or has changed for a long time) have their columns
+    /// made again from the cells and are marked for <see cref="Update"/> to rebuild their shapes; the grains that moved are marked dirty for a renderer.
+    /// </summary>
+    /// <returns>How many grains moved.</returns>
+    public int SandStep()
+    {
+        if (!Ok || Sand == null) return 0;
+        int moves = Sand.Step(Pixels);
+        if (Sand.StepDirty)
+        {
+            MarkDirty(Sand.DirtyX0, Sand.DirtyY0, Sand.DirtyX1, Sand.DirtyY1);
+            Sand.ClearStepDirty();
+        }
+        for (int i = 0; i < Chunks.Count; i++)
+        {
+            if (Sand.Ready[i] == 0) continue;
+            PixelChunk c = Chunks[i];
+            ColumnsFromCells(c);
+            c.Dirty = true;
+            if (ColliderKind == Chains)             // an outline traced beside a changed edge changes with it
+            {
+                if (c.Left != null) c.Left.Dirty = true;
+                if (c.Right != null) c.Right.Dirty = true;
+                if (c.Down != null) c.Down.Dirty = true;
+                if (c.Up != null) c.Up.Dirty = true;
+            }
+            Sand.Published(i);
+        }
+        return moves;
+    }
+
+    /// <summary>The chunk's columns from the sand's cells: a range for each run of ground (stone or sand).</summary>
+    private void ColumnsFromCells(PixelChunk c)
+    {
+        c.Columns.Clear();
+        for (int x = 0; x < c.Width; x++)
+        {
+            c.Columns.Add(new PixelColumn(x));
+            int y = 0;
+            while (y < c.Height)
+            {
+                if (Sand.IsGroundAt(c.X0 + x, c.Y0 + y))
+                {
+                    int min = y;
+                    while (y < c.Height && Sand.IsGroundAt(c.X0 + x, c.Y0 + y)) y++;
+                    c.Columns[x].AddRange(min, y - 1);
+                }
+                else y++;
+            }
+        }
+    }
+
+    /// <summary>Puts one grain of sand, water or stone in an air pixel. False if the pixel is not air (or is outside, or sand is not enabled).</summary>
+    public bool AddElement(int x, int y, int element)
+    {
+        if (!Ok || Sand == null) return false;
+        if (!Sand.Spawn(Pixels, x, y, element)) return false;
+        MarkDirty(x, y, x, y);
+        return true;
+    }
+
+    /// <summary>
+    /// Fills the disc of pixels within <paramref name="radius"/> of (cx, cy) with an element, where the pixels are air.
+    /// </summary>
+    /// <returns>How many grains were put in: fewer than the disc has pixels where some are not air.</returns>
+    public int Sprinkle(int cx, int cy, int radius, int element)
+    {
+        if (!Ok || Sand == null || radius < 0) return 0;
+        int n = 0;
+        for (int dy = -radius; dy <= radius; dy++)
+            for (int dx = -radius; dx <= radius; dx++)
+                if (dx * dx + dy * dy <= radius * radius && AddElement(cx + dx, cy + dy, element)) n++;
+        return n;
     }
 
     // ---- shapes ----------------------------------------------------------------------------
