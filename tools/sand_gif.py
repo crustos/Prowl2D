@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """sand_gif.py -- draw an animated GIF of Samples/SlimeJumpDestructSand from its own run.
 
-    python3 tools/sand_gif.py [-o OUT.gif] [--every N] [--scale S]
+    python3 tools/sand_gif.py [-o OUT.gif] [--every N] [--scale S] [--sample SlimeJumpHeads]
 
 The sample is headless, so this copies it to a scratch folder, adds a recorder (it prints the terrain window and the nodes every N frames), runs it with the
 native player, and draws the printout with Pillow: rock, sand and water from the terrain bitmap, boxes and fragment triangles from the colliders.
 The sample itself is not changed."""
-import argparse, os, shutil, subprocess, sys, tempfile
+import argparse, json, os, shutil, subprocess, sys, tempfile
 from PIL import Image, ImageDraw
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "Samples", "SlimeJumpDestructSand")
+ART = os.path.join(ROOT, "tools", "slime_heads", "art")          # the heads rendered with Blender (tools/slime_heads/render.py): KIND_N.png, 64x64
+HEADS = {2: "cat", 3: "dog", 4: "frog", 5: "ogre"}                      # enemy kind -> its art: a head on an ASCII body (tools/slime_heads/render.py)
+ART_PPU = 16                                                       # art pixels to a world unit (the head is 32 pixels, 2 units)
+HEAD_FPS = 8
 
 REC = '''using System;
 using Prowl.Core2D;
@@ -81,6 +85,8 @@ static class Rec
             }
             Console.WriteLine(line + " O");
         }
+        for (int q = 0; q < Shared.EnemyCount(); q++)
+            if (Shared.EnemyAlive(q)) Console.WriteLine("K " + (Shared.TagEnemyBase + q) + " " + Shared.EnemyKind(q) + " " + Mi(Shared.EnemyFace(q)) + " " + (Shared.EnemyChase(q) ? 1 : 0));
         Console.WriteLine("E");
     }
 }
@@ -88,7 +94,7 @@ static class Rec
 
 def record(every):
     work = tempfile.mkdtemp(prefix="sandgif_")
-    game = os.path.join(work, "SlimeJumpDestructSand")
+    game = os.path.join(work, os.path.basename(SAMPLE))
     shutil.copytree(SAMPLE, game, ignore=shutil.ignore_patterns("*.md", "*.gif"))
     p = os.path.join(game, "Destruct.cs")
     s = open(p, encoding="utf-8").read()
@@ -133,6 +139,11 @@ def parse(text):
                 v = [int(t) / 1000 for t in w[7:7 + 2 * n]]
                 node["poly"] = list(zip(v[0::2], v[1::2]))
             cur["nodes"].append(node)
+        elif ln.startswith("K "):
+            _, tag, kind, face, chase = ln.split()
+            for n in cur["nodes"]:
+                if n["tag"] == int(tag):
+                    n["kind"], n["chase"] = int(kind), chase == "1"
         elif ln == "E":
             frames.append(cur)
             cur = None
@@ -244,6 +255,24 @@ def textures():
     return _tex
 
 CRATE_IDS = (200, 201, 202, 207, 208, 209, 210)          # item i has Tag 200 + i: the crates (Game.cs adds them in this order)
+_art = {}
+_anchors = None
+
+def anchors():
+    global _anchors
+    if _anchors is None:
+        with open(os.path.join(ART, "anchors.json")) as f:
+            _anchors = json.load(f)
+    return _anchors
+
+def head_frame(kind, frame):
+    """The 64x64 frame of a head for a game frame (100 a second): the sprite loops at HEAD_FPS."""
+    name = HEADS[kind]
+    i = int(frame * HEAD_FPS / 100) % 8
+    if (name, i) not in _art:
+        _art[(name, i)] = Image.open(os.path.join(ART, "%s_%d.png" % (name, i))).convert("RGBA")
+    return _art[(name, i)]
+
 def draw(fr, scale, noise):
     ppu = 8
     h = fr["y1"] - fr["y0"]
@@ -269,8 +298,10 @@ def draw(fr, scale, noise):
     d = ImageDraw.Draw(img)
     def S(wx, wy):
         return (wx * ppu * scale, (fr["y1"] - wy * ppu) * scale)
-    bullets = []
+    bullets, heads, slime = [], [], None
     for n in fr["nodes"]:
+        if n["tag"] == 1 and n["poly"]:
+            slime = n
         t = n["tag"]
         if n["layer"] == 7 and n["poly"] is None:
             continue                           # the terrain's chunk nodes
@@ -280,12 +311,17 @@ def draw(fr, scale, noise):
         if n["poly"] is None:
             continue
         pts = [S(x, y) for x, y in n["poly"]]
+        if n.get("kind", 0) >= 2 and n["kind"] in HEADS and os.path.isdir(ART):          # an enemy: its art (a head on a body), mirrored to face the slime
+            heads.append(n)
+            continue
         if t == 1:                             # the slime
             d.polygon(pts, fill=(70, 220, 110), outline=(20, 90, 40))
             cx, cy = S(n["x"], n["y"])
             e = scale * 2
             d.ellipse([cx - 2 * e, cy - e * 1.5, cx - 0.4 * e, cy - e * 0.1], fill=(255, 255, 255))
             d.ellipse([cx + 0.4 * e, cy - e * 1.5, cx + 2 * e, cy - e * 0.1], fill=(255, 255, 255))
+        elif t == 10:                          # a brick: what a shot enemy comes apart into (Samples/SlimeJumpHeads/Bricks.cs)
+            d.polygon(pts, fill=(178, 84, 62), outline=(232, 208, 192))
         elif t == 6:                           # the goal
             d.polygon(pts, outline=(255, 215, 0))
         elif t >= 200:
@@ -295,17 +331,32 @@ def draw(fr, scale, noise):
                 d.polygon(pts, fill=(138, 138, 132), outline=(62, 62, 60))
         else:                                  # a fragment
             d.polygon(pts, fill=(158, 96, 76), outline=(70, 40, 34))
+    for n in heads:
+        src = head_frame(n["kind"], fr["frame"])
+        k = scale * 8.0 / ART_PPU                                       # screen pixels to an art pixel (the terrain is 8 pixels to a unit)
+        sprite = src.resize((max(1, round(src.width * k)), max(1, round(src.height * k))), Image.NEAREST)
+        if slime is not None and slime["x"] > n["x"]:
+            sprite = sprite.transpose(Image.FLIP_LEFT_RIGHT)
+        cx, cy = S(n["x"], n["y"])
+        ax, ay = anchors()[HEADS[n["kind"]]]                            # where the centre of the head is in the picture
+        img.paste(sprite, (int(cx - ax * k), int(cy - ay * k)), sprite)
+    d = ImageDraw.Draw(img)
     for bx, by in bullets:
         d.ellipse([bx - scale * 2, by - scale * 2, bx + scale * 2, by + scale * 2], fill=(255, 240, 120))
     return img
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-o", "--out", default=os.path.join(SAMPLE, "slimejumpdestructsand.gif"))
+    ap.add_argument("--sample", default="SlimeJumpDestructSand", help="the folder of Samples/ to record (SlimeJumpHeads draws the heads of tools/slime_heads/art)")
+    ap.add_argument("-o", "--out")
     ap.add_argument("--every", type=int, default=8)
     ap.add_argument("--scale", type=int, default=2)
     ap.add_argument("--dump", help="keep the raw printout here")
     a = ap.parse_args()
+    global SAMPLE
+    SAMPLE = os.path.join(ROOT, "Samples", a.sample)
+    if not a.out:
+        a.out = os.path.join(SAMPLE, a.sample.lower() + ".gif")
     text, work = record(a.every)
     if a.dump:
         open(a.dump, "w").write(text)
@@ -314,7 +365,17 @@ def main():
     shutil.rmtree(work, ignore_errors=True)
     imgs = [draw(f, a.scale, 4) for f in frames]
     # one palette for all frames (a frame of its own would lose the slime's green), made from a montage of some frames and the picture's key colours
-    keys = [(70, 220, 110), (20, 90, 40), (255, 255, 255), (255, 240, 120), (255, 215, 0), (196, 120, 50), (110, 60, 20), (138, 138, 132), (62, 62, 60), (158, 96, 76), (70, 40, 34), SAND, WATER]
+    keys = [(70, 220, 110), (20, 90, 40), (255, 255, 255), (255, 240, 120), (255, 215, 0), (196, 120, 50), (110, 60, 20), (138, 138, 132), (62, 62, 60), (158, 96, 76), (70, 40, 34), (178, 84, 62), (232, 208, 192), SAND, WATER]
+    if os.path.isdir(ART):                          # and the enemies' own colours, exact: 24 of them, by median cut of their frames
+        art = Image.new("RGB", (sum(head_frame(k, 0).width for k in HEADS), max(head_frame(k, 0).height for k in HEADS)), (0, 0, 0))
+        x = 0
+        for k in HEADS:
+            f = head_frame(k, 0)
+            art.paste(f, (x, 0), f)
+            x += f.width
+        q = art.quantize(colors=24, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+        pl = q.getpalette()[:72]
+        keys += [tuple(pl[i:i + 3]) for i in range(0, 72, 3)]
     sw = Image.new("RGB", (len(keys) * 8, 8))
     for i, k in enumerate(keys):
         sw.paste(k, (i * 8, 0, i * 8 + 8, 8))
@@ -323,6 +384,17 @@ def main():
     for i, im in enumerate(pick):
         mont.paste(im, (0, i * im.height))
     mont.paste(sw, (0, len(pick) * imgs[0].height))
+    if os.path.isdir(ART):                          # the enemies' colours too, or the palette gives them up (the ogre's purple turns grey)
+        strip = Image.new("RGB", (sum(head_frame(k, 0).width for k in HEADS), max(head_frame(k, 0).height for k in HEADS)), (30, 20, 20))
+        x = 0
+        for k in HEADS:
+            f = head_frame(k, 0)
+            strip.paste(f, (x, 0), f)
+            x += f.width
+        mont2 = Image.new("RGB", (max(mont.width, strip.width), mont.height + strip.height))
+        mont2.paste(mont, (0, 0))
+        mont2.paste(strip, (0, mont.height))
+        mont = mont2
     pal = mont.quantize(colors=128, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
     plist = pal.getpalette()[:384]
     for i, k in enumerate(keys):                    # the key colours are exact, in the last entries
