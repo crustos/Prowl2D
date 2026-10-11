@@ -3,6 +3,7 @@
 
     python3 prowl.py [project.json]        open the editor (a demo project if none is given)
     python3 prowl.py --demo slime          open Samples/SlimeJumpDestruct as a project and play it in the viewport (the dirt wall is dug, crates burst)
+    python3 prowl.py --demo slime-rust     open SlimeJump with its game logic in Rust scripts (Samples/SlimeJumpRust): press F5 to build them, then play (arrows or A/D, space, mouse: blaster and lasso, T: the bot)
     python3 prowl.py --viewport [...]      also open the engine's SDL2 window on the first level
     python3 prowl.py --export-ascii DIR project.json     no GUI: write the project's sprites and levels as ASCII art / emoji text into DIR
     python3 prowl.py --import-ascii OUT.json [--sprites A.txt ...] [--levels B.txt ...]    no GUI: build a project from ASCII art and emoji levels
@@ -18,10 +19,11 @@ The editor is several floating windows (project / palette / sprite editor / leve
 Sand: the Sand window (or S in the viewport) switches on the GPU sand (compute shaders): the left mouse button paints sand, water or stone (keys 1 2 3, 0 erases, [ ] brush,
 Space pauses, C clears), and the level's solid tiles are stone to it. It needs OpenGL ES 3.1 with compute (Mesa's software GL has it).
 
-Scripts: the Scripts window is a small code editor for the project's C# (saved in the project file). Mark a class [Script, MaxInstances(N)] with `public Component Self;` and
-callbacks (Update, OnCollisionBegin2D ...), tick it for a sprite (it runs on every tile showing that sprite) or for the game (once per play), and press F5: the scripts are
-translated to C with the engine (needs the .NET SDK, about a minute), a new engine library is linked, the viewport's window closes and opens again on it. Errors come back with
-their line. Scripts read keys and the mouse with Input2D (Native/Engine2D/Input2D.cs). Only the C# subset builds (tools/ccsharp/README.md).
+Scripts: the Scripts window is a small code editor for the project's scripts (C#, C++, Rust or RPython, picked next to New script; saved in the project file). Mark a class
+[Script, MaxInstances(N)] with `public Component Self;` and callbacks (Update, OnCollisionBegin2D ...), tick it for a sprite (it runs on every tile showing that sprite) or for the
+game (once per play), and press F5: the scripts are translated to C with the engine (needs the .NET SDK, about a minute), a new engine library is linked, the viewport's window
+closes and opens again on it. Errors come back with their line. Scripts read keys and the mouse with Input2D (Native/Engine2D/Input2D.cs). Only the C# subset builds
+(tools/ccsharp/README.md); the C++, Rust and RPython scripts are lowered to C by Crust's front ends and linked in too (tools/script_native.py; EDITOR.md, Scripts).
 
 Without it everything but the viewport works. Sprites are indexed-palette pixel art (a letter per colour); levels are grids of emoji tiles, which an
 exported level shows as text. See prowl_editor/asciiart.py for both formats.
@@ -42,6 +44,9 @@ def load_project(path, demo=None):
     if demo == "slime":
         from prowl_editor.slime_demo import make_slime_project
         return make_slime_project()
+    if demo == "slime-rust":
+        from prowl_editor.slime_rust import make_slime_rust_project
+        return make_slime_rust_project()
     return make_demo_project()
 
 
@@ -161,7 +166,7 @@ def cmd_gui(project_path, open_viewport, quit_after=None, demo=None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("project", nargs="?", help="a project .json (default: the demo project)")
-    ap.add_argument("--demo", choices=["coins", "slime"], help="open a built-in project: 'slime' is Samples/SlimeJumpDestruct, played in the viewport")
+    ap.add_argument("--demo", choices=["coins", "slime", "slime-rust"], help="open a built-in project: 'slime' is Samples/SlimeJumpDestruct, played in the viewport; 'slime-rust' is SlimeJump in Rust (press F5 to build it)")
     ap.add_argument("--viewport", action="store_true", help="also open the engine's SDL2 window")
     ap.add_argument("--export-ascii", metavar="DIR", help="no GUI: write sprites/ and levels/ text files of the project into DIR")
     ap.add_argument("--import-ascii", metavar="OUT.json", help="no GUI: build a project from --sprites and --levels text files")
