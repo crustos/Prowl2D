@@ -15,6 +15,8 @@ import ctypes as C
 import os
 import time
 
+from . import scenery
+
 ABI_VERSION = 5
 _HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(_HERE)
@@ -49,9 +51,13 @@ P2D = {
     "p2d_add_sprite": (_i, [_i, _i, _f, _f, _f, _f, _f]), "p2d_add_body": (_i, [_i, _i]),
     "p2d_add_box": (_i, [_i, _f, _f]), "p2d_add_circle": (_i, [_i, _f]), "p2d_gravity": (None, [_f, _f]),
     "p2d_set_velocity": (None, [_i, _f, _f]), "p2d_impulse": (None, [_i, _f, _f]), "p2d_velocity_x": (_f, [_i]), "p2d_velocity_y": (_f, [_i]),
-    "p2d_add_body_ex": (_i, [_i, _i, _i, _f]), "p2d_add_box_ex": (_i, [_i, _f, _f, _f]), "p2d_blast": (_i, [_f, _f, _f, _f]),
+    "p2d_add_body_ex": (_i, [_i, _i, _i, _f]), "p2d_add_box_ex": (_i, [_i, _f, _f, _f]), "p2d_add_box_trigger": (_i, [_i, _f, _f]), "p2d_blast": (_i, [_f, _f, _f, _f]),
     "p2d_step": (None, [_f]), "p2d_draw": (_i, []),
-    "p2d_script_count": (_i, []), "p2d_attach_script": (_i, [_i, _i]), "p2d_set_key": (None, [_i, _i]), "p2d_set_mouse": (None, [_f, _f, _i]), "p2d_clear_input": (None, []),
+    "p2d_script_count": (_i, []), "p2d_attach_script": (_i, [_i, _i]), "p2d_node_alive": (_i, [_i]), "p2d_set_tag": (None, [_i, _i]), "p2d_get_tag": (_i, [_i]),
+    "p2d_node_slots": (_i, []), "p2d_node_active": (_i, [_i]), "p2d_set_active": (None, [_i, _i]), "p2d_sprite_info": (_f, [_i, _i]),
+    "p2d_set_global": (None, [_i, _f]), "p2d_get_global": (_f, [_i]), "p2d_set_layer": (None, [_i, _i]), "p2d_collider_of": (_i, [_i]),
+    "p2d_raycast": (_i, [_f, _f, _f, _f, _f, _i]), "p2d_ray_x": (_f, []), "p2d_ray_y": (_f, []), "p2d_overlap_box": (_i, [_f, _f, _f, _f, _i]),
+    "p2d_math_sqrt": (_f, [_f]), "p2d_math_sin": (_f, [_f]), "p2d_math_cos": (_f, [_f]), "p2d_math_atan2": (_f, [_f, _f]), "p2d_key_down": (_i, [_i]), "p2d_mouse_down": (_i, [_i]), "p2d_mouse_world_x": (_f, []), "p2d_mouse_world_y": (_f, []), "p2d_set_key": (None, [_i, _i]), "p2d_set_mouse": (None, [_f, _f, _i]), "p2d_clear_input": (None, []),
 }
 GFX = {
     "gfx_draw": (_i, [_v, _i]), "gfx_camera": (None, [_f] * 6), "gfx_pixel": (C.c_uint32, [_i, _i]), "gfx_frame_hash": (_i, []),
@@ -360,6 +366,7 @@ class Viewport:
                             full += len(names)
                             continue
                         e.p2d_set_pos(node, x + 0.5, lv.height - y - 0.5)
+                        self.actors.append({"node": node, "tile": self.cells[y * lv.width + x], "w": 1.0, "h": 1.0, "ttl": None, "cell": (x, y), "script": True})     # (drawn where the script puts it, and gone when it destroys it)
                     attach(node, names)
         if proj.game_scripts:
             node = e.p2d_new_node()
@@ -375,27 +382,39 @@ class Viewport:
         return "; ".join(parts)
 
     def _build_statics(self):
-        """The solid cells as static boxes: a run of them in a row is ONE box (the scene holds 256 nodes). Called again after a blast has dug cells out."""
+        """The solid cells as static boxes: a run of them in a row is ONE box, and rows with the same run under each other are one box too (the scene holds 256 nodes, and a body
+        sliding along a wall would catch on the seams between boxes). Called again after a blast has dug cells out."""
         lv, e = self.level, self.engine.lib
         for node in self.statics:
             e.p2d_destroy_node(node)
         self.statics = []
         solid = {k for k, t in self.project.tiles.items() if t.solid and not t.dynamic}
+        W = lv.width
+        used = set()
+
+        def is_solid(x, y):
+            return self.cells[y * W + x] in solid and (x, y) not in used
         for y in range(lv.height):
             x = 0
-            while x < lv.width:
-                if self.cells[y * lv.width + x] in solid:
+            while x < W:
+                if is_solid(x, y):
                     x0 = x
-                    while x < lv.width and self.cells[y * lv.width + x] in solid:
+                    while x < W and is_solid(x, y):
                         x += 1
+                    y1 = y
+                    while y1 + 1 < lv.height and all(is_solid(i, y1 + 1) for i in range(x0, x)):
+                        y1 += 1
+                    for yy in range(y, y1 + 1):
+                        for i in range(x0, x):
+                            used.add((i, yy))
                     node = e.p2d_new_node()
                     if node < 0:
                         self._skipped += 1
                         continue
-                    w = x - x0
-                    e.p2d_set_pos(node, x0 + w / 2.0, lv.height - y - 0.5)
+                    w, h = x - x0, y1 - y + 1
+                    e.p2d_set_pos(node, x0 + w / 2.0, lv.height - y - h / 2.0)
                     e.p2d_add_body(node, BODY_STATIC)
-                    e.p2d_add_box(node, float(w), 1.0)
+                    e.p2d_add_box(node, float(w), float(h))
                     self.statics.append(node)
                 else:
                     x += 1
@@ -686,6 +705,8 @@ class Viewport:
         lv, proj = self.level, self.project
         flat = array.array("f")                                  # the sprite batch: tiles with no sprite, and the balls
         quads = {}                                               # texture id -> array of mesh vertices
+        if proj.backdrop:
+            scenery.draw(proj.backdrop, self, flat)
         if lv is not None:
             aspect = self.width / float(self.height)
             x0 = max(0, int(self.cx - self.half * aspect) - 1)
@@ -720,9 +741,15 @@ class Viewport:
                         pr, pg, pb = placeholder_color(g_)
                         flat.extend((cx, cy, 0.5, 0.5, 0.0, pr, pg, pb, 1.0, 0, 1, 0))      # layer 1: over the frame
             # a faint frame around the level (layer 0, under the tiles), so its edge shows against the background
-            flat.extend((lv.width / 2.0, lv.height / 2.0, lv.width / 2.0 + 0.06, lv.height / 2.0 + 0.06, 0.0, 0.2, 0.22, 0.3, 1.0, 0, 0, 0))
+            if not proj.backdrop:
+                flat.extend((lv.width / 2.0, lv.height / 2.0, lv.width / 2.0 + 0.06, lv.height / 2.0 + 0.06, 0.0, 0.2, 0.22, 0.3, 1.0, 0, 0, 0))
         if self.playing:
+            for a in [a for a in self.actors if a.get("script") and not self.engine.lib.p2d_node_alive(a["node"])]:
+                self.actors.remove(a)                            # a script destroyed its node (a gem was picked up): the tile is gone with it
+                self.cells[a["cell"][1] * self.level.width + a["cell"][0]] = ""
             for a in self.actors:
+                if a.get("script") and not self.engine.lib.p2d_node_active(a["node"]):
+                    continue                                     # a script switched it off (a crumbled platform)
                 nx, ny, ang = self.engine.lib.p2d_node_x(a["node"]), self.engine.lib.p2d_node_y(a["node"]) + a.get("dy", 0.0), self.engine.lib.p2d_node_angle(a["node"])
                 spr = proj.sprite_for_tile(proj.tiles[a["tile"]]) if a.get("tile") in proj.tiles else None
                 tex = 0
@@ -742,6 +769,17 @@ class Viewport:
                 else:
                     r, g, b = a.get("color", (0.8, 0.55, 0.3))
                     flat.extend((nx, ny, a["w"] / 2.0, a["h"] / 2.0, ang, r, g, b, a.get("alpha", 1.0), a.get("shape", 0), a.get("layer", 2), 0))
+        if self.playing:                                         # what scripts made and gave a sprite (add_sprite): bullets, arrows, a rope
+            lib, known = self.engine.lib, {a["node"] for a in self.actors}
+            known.update(self.balls)
+            for node in range(lib.p2d_node_slots()):
+                if node in known or not lib.p2d_node_alive(node) or not lib.p2d_node_active(node):
+                    continue
+                shape = lib.p2d_sprite_info(node, 0)
+                if shape < 0:
+                    continue
+                flat.extend((lib.p2d_node_x(node), lib.p2d_node_y(node), lib.p2d_sprite_info(node, 1) / 2.0, lib.p2d_sprite_info(node, 2) / 2.0, lib.p2d_node_angle(node),
+                             lib.p2d_sprite_info(node, 3), lib.p2d_sprite_info(node, 4), lib.p2d_sprite_info(node, 5), lib.p2d_sprite_info(node, 6), int(shape), 4, 0))
         for node in self.balls:
             flat.extend((self.engine.lib.p2d_node_x(node), self.engine.lib.p2d_node_y(node), 0.35, 0.35, 0.0, 1.0, 0.55, 0.2, 1.0, 1, 5, 0))
         n = len(flat) // 12
