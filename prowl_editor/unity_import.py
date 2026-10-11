@@ -420,7 +420,7 @@ def _nearest(rgb, table):
     return best
 
 
-def build_palette_mapping(project, pendings):
+def build_palette_mapping(project, pendings, label="unity"):
     """Makes room in the project's palette for the colours the pending sprites use; returns (rgb -> palette index, number of colours that had to be merged).
     A colour the palette already holds keeps its entry. New colours get entries (most used first) while there is room; past that they are quantized."""
     pal = project.palette
@@ -448,7 +448,7 @@ def build_palette_mapping(project, pendings):
         for rgb in chosen:
             if rgb in have or rgb in added:
                 continue
-            added[rgb] = pal.add(_free_key(pal), "unity %s" % ("#%02x%02x%02x" % rgb), rgb)
+            added[rgb] = pal.add(_free_key(pal), "%s %s" % (label, "#%02x%02x%02x" % rgb), rgb)
         table = [(i, e.rgb) for i, e in enumerate(pal.entries) if e.rgb is not None]
         for c in new:
             if c in added:
