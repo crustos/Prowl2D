@@ -114,7 +114,7 @@ def diagnostics(text):
     return out
 
 
-def generate(game, out_dir, gfx):
+def generate(game, out_dir, gfx, extra=None):
     """The generated inputs of a build: the bindings of each native library the game uses (both flavors), their headers in one folder, and the call sink
     for the game's scripts. Returns the sink's path and the include folder."""
     gen_dir = os.path.join(out_dir, "generated")
@@ -131,15 +131,17 @@ def generate(game, out_dir, gfx):
         gen_pb2.generate(os.path.join(gen_dir, "bindings"))
         shutil.copy2(header, include)
     gen_pb2.use("box2d")
+    if extra:
+        extra(os.path.join(gen_dir, "bindings", "c"), include)       # more bindings and headers that the caller's own sources need (the engine library's scripts in other languages)
     sink = os.path.join(gen_dir, "Scripts.g.cs")
     gen_scripts.generate(sink, game)
     return sink, include
 
 
-def translate(game, out_dir, main_class, gfx, dna=False):
+def translate(game, out_dir, main_class, gfx, dna=False, extra=None):
     """Runs the translator over engine + game + generated sink; returns (path of the C file, list of diagnostics, raw output)."""
     gen_dir = os.path.join(out_dir, "generated")
-    sink, nat_inc = generate(game, out_dir, gfx)
+    sink, nat_inc = generate(game, out_dir, gfx, extra)
     ccs2c = os.path.join(scan.ccsharp_home(), "crust", "ccs2c.py")
     c_dir = os.path.join(out_dir, "c")
     shutil.rmtree(c_dir, ignore_errors=True)
