@@ -3,13 +3,80 @@
 PyQt5 editor (floating windows) over the engine, which is the C# runtime translated to C and loaded with ctypes.
 
     python3 build.py so            # builds /tmp/libprowl2d.so (+ libprowl2d.h); PROWL2D_LIB overrides the path
-    python3 prowl.py [project.json] [--viewport]
+    python3 prowl.py [project.json] [scene.blend …] [--viewport]
     python3 prowl.py --demo slime  # Samples/SlimeJumpDestruct, played in the viewport
     python3 prowl.py --export-ascii DIR project.json
-    python3 prowl.py --import-ascii OUT.json --sprites a.txt … --levels b.txt …
+    python3 prowl.py --import-ascii [OUT.json] --sprites a.txt … --levels b.txt …   # builds the project, saves it as OUT.json, opens the editor on it
+    python3 prowl.py --no-gui -o OUT.json …                                          # any of the imports without opening the editor (for scripts)
+    python3 prowl.py scene.blend                     # Blender collections as sprites (see Blender, below)
+    python3 prowl.py --plugin tool.py …              # your own options, importers and editor hooks (see Plugins, below)
     python3 prowl.py --selftest    # model, GUI (offscreen), engine tests; run under xvfb-run for the viewport tests
 
 Windows: Project (File menu), Palette, Sprite editor, Level editor, Effects, Lights, and the engine's own SDL2 viewport (P play, R reset, Home fit, wheel zoom, right-drag pan).
+
+## Importing and the command line
+`--import-ascii` builds a project from ASCII-art sprites and emoji levels and **opens the editor on it** (the first imported sprite and level are selected); with `OUT.json` it also saves it
+there first. Give a project too (`prowl.py game.json --import-ascii --sprites more.txt`) to add to it. With `--no-gui` it only writes the file, as it did before the editor opened. If the machine
+has no display (or no PyQt5) and the project was saved, the editor is skipped with a note; if nothing was saved, prowl.py stops before doing any work and asks for `--output FILE.json`.
+The positional files and the options can come in any order. `--output` / `-o` saves the project after any import, `--no-gui` skips the editor; both work with Blender files and plugins.
+
+## Blender
+Give prowl.py a `.blend` file, or a Python script that builds a scene, and each **collection** is rendered to a sprite named after it, added to the project the editor opens (a new project named after
+the file, unless you give one):
+
+    python3 prowl.py scene.blend                               # sprites in a new project, editor opens
+    python3 prowl.py game.json scene.blend -o game.json --no-gui   # added to the project in game.json and saved, no editor
+    python3 prowl.py --blend-script tools/examples/blender_sprites.py -o sprites.json    # the script builds the scene; no .blend is needed
+
+Blender runs in the background: it is found on the PATH, in the usual install folders, in `$BLENDER`, or at `--blender PATH` (developed and tested with Blender 5.0; it runs with `--factory-startup`, so your
+preferences and add-ons are not loaded). `tools/blender_render_collections.py` runs inside it. The rules:
+
+- Every collection directly under the scene's collection is one sprite, with everything inside it (child collections too, collection instances too). A collection with no geometry (a "Lights" one),
+  one switched off for renders or excluded from the view layer is skipped, with a note. `--blend-collections Hero,Coin*` renders only the named ones instead, at any depth (`*` and `?` match).
+- The camera is orthographic and looks from `--blend-view` (`front` for a side-scroller, the default; `top` for a top-down game; also `back`, `left`, `right`, `bottom`). The background is transparent.
+- All sprites share one scale, so a coin stays smaller than the hero: `--blend-size N` makes the longest side of the biggest collection N pixels (default 32), or `--blend-ppu N` fixes the pixels per
+  Blender unit (one unit = one tile at `--blend-ppu 16` is 16 pixels). Each sprite is cropped to what it shows; a sprite is at most 256 pixels a side.
+- The scene's own lights are used; a scene with none gets a sun and an ambient light so it is not black. `--blend-engine` is `cycles` (the default, which needs no GPU), `eevee` or `workbench`;
+  `--blend-samples` sets the samples (default 16, few: the edges stay hard, like pixel art).
+- Sprites use a palette, so the colours of all the renders are folded into at most `--blend-colors` (default 32, 0 for no limit) and added to the project's palette as `blender #rrggbb`.
+- A script (`--blend-script`, repeatable) starts in an empty scene, not Blender's cube, and does not have to save anything. An error in it shows Blender's output.
+- `--blend-keep DIR` keeps the full-size renders and `manifest.json` in DIR, to see what Blender drew.
+
+- **Animation.** `--blend-frames` (or `--blend-frames 10:40`) renders every frame of the scene's frame range, at the scene's frame rate, as the frames of each sprite. A collection is framed once
+  around everything it covers in any frame, so the frames stay aligned; one that does not move keeps a single frame. Put the files before the option, or write `--blend-frames all`.
+- **Levels.** A collection whose name starts with `level` (`Level_1`, `level 2`) is a level, not a sprite. Put collection instances in it (Add > Collection Instance, or an Empty with Instancing set to
+  Collection): each instanced collection is rendered as a sprite named after it, and each instance becomes a tile at its position, snapped to a grid of `--blend-cell` Blender units (default 1, so a 1 unit tile
+  is one cell) with up at the top of the level. A custom property `solid` on a tile's collection makes its tiles solid. Anything in a level that is not an instance is ignored with a note; a tile off its
+  cell by more than a quarter, or hidden behind another in the same cell, is reported. The tiles get emoji names like those of the Unity import. Keep the tile collections enabled for renders (excluding them hides them).
+  Use `--blend-ppu` with levels (say 16): `--blend-size` sizes the biggest sprite, which would shrink the tiles next to a tall hero.
+
+Importing again adds the sprites again (`hero`, then `hero 2`), and a level that was imported twice is `Level_1`, `Level_1 2`, each pointing at its own sprites.
+
+### Animating with code
+
+A `--blend-script` can animate what it builds, in the same script. `tools/prowl_blender.py` (on Blender's path for scripts) has the small things that make it easy:
+`new_scene(frames, fps)`, `frames()` (steps the frames; `f.t` goes 0 to 1 over the loop), `key(ob, location, rotation, scale)`, `collection(name, layers=True)`
+and `head(kind)`. The heads come from [zigzag](https://github.com/brentharts/zigzag) (MIT): Blender's Suzanne with some vertices moved (monkey, cat, dog, bear,
+gorilla, alien, frog, ogre; emoji work too), so every kind has the same polygons for the same parts. A part is the polygons of one material (skin, eye, pupil,
+lids, lip, teeth, ...), made an object of its own; the materials have roles (pupil, eyelids, lower lip) that say how they move. `look(x, y)`, `blink(amount)`,
+`mouth(amount)` and `move(...)` keyframe them for the current frame. See `tools/examples/animated_head.py`.
+
+A collection made with `layers=True` (`head()` does) is rendered as a sprite and so is each of its child collections, all framed alike, so the layers lie exactly
+over each other in the project. A scene with more than one frame from `new_scene` renders all its frames without `--blend-frames`.
+
+## Plugins
+`--plugin FILE.py` (or a folder of `.py` files; repeatable) loads Python plugins when prowl.py starts, so a user can extend the command line without touching prowl.py. A plugin with a
+`register(prowl)` function gets an object to add things to; one without is just run. `tools/examples/plugin_palette.py` uses all of it, in 40 lines:
+
+    def register(prowl):
+        prowl.add_argument("--pal-width", type=int, default=2)    # a command-line option (listed by --help)
+        prowl.add_importer(".pal", import_pal)                     # prowl.py FILE.pal calls import_pal(project, path, args)
+        prowl.on_project(lambda project, args: ...)                # once the project is built, before it is saved or opened
+        prowl.on_gui(lambda studio, main, windows, args: ...)      # when the editor opens: add menus, select things...
+
+An importer adds sprites and levels to the project and may return `prowl_editor.plugins.ImportResult(sprites=…, levels=…, notes=…)`; prowl.py prints it and selects what was imported.
+`args` is the parsed command line, so a plugin reads its own options from it. A plugin's folder is on `sys.path`, so it can import its own helper modules and `prowl_editor` (the model: `Project`,
+`Sprite`, `Level`, `asciiart`, `unity_import` ...). A plugin that fails stops prowl.py with its name; a bug in one also shows the traceback. `.json` and `.py` files cannot be given importers.
 
 ## Effects
 The Effects window (Window menu) holds a level's picture effects as a stack, first to last: Add effect (grouped menu), Up / Down, Duplicate, Remove, Reset, and a check box to switch one off.
