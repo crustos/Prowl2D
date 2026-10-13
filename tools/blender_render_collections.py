@@ -14,6 +14,7 @@ or excluded from the view layer is skipped. If the scene has no light, a sun and
 A collection whose name starts with "level" is a level, not a sprite: it is not rendered, its collection instances (empties that instance a collection) are the tiles.
 Each tile is the instanced collection, which is rendered as a sprite, at the instance's position along the camera's right and up axes.
 A custom property "solid" on a rendered collection is passed on (the tiles of that sprite are solid).
+Grease Pencil objects render in Cycles too: a scene that has any gets the Combined and Z passes switched on (Cycles needs them for Grease Pencil).
 
 With --frames (all, or START:END) every frame of the range is rendered, as the frames of the sprite: a collection is framed once, around everything it covers in
 any frame, so the animation does not jitter. Without it, one still of the scene's current frame.
@@ -41,7 +42,8 @@ VIEWS = {
     "top": ((0, 0, -1), (0, 1, 0)),              # a top-down game
     "bottom": ((0, 0, 1), (0, -1, 0)),
 }
-BOUNDED = {"MESH", "CURVE", "SURFACE", "META", "FONT", "CURVES", "POINTCLOUD", "VOLUME", "GREASEPENCIL", "GPENCIL"}   # what has a bounding box to frame
+GREASE_PENCIL = {"GREASEPENCIL", "GPENCIL"}      # Blender 4.3 and later / before
+BOUNDED = {"MESH", "CURVE", "SURFACE", "META", "FONT", "CURVES", "POINTCLOUD", "VOLUME"} | GREASE_PENCIL   # what has a bounding box to frame
 PAD = 2                          # transparent pixels around a render; prowl.py crops them
 MAX_RESOLUTION = 2048            # a render never gets bigger than this on a side
 MAX_FRAMES = 256                 # frames of one animation
@@ -249,6 +251,21 @@ def set_engine(scene, engine, samples):
     r.use_file_extension = True
 
 
+def prepare_grease_pencil(scene, view_layer, objects):
+    """Cycles draws Grease Pencil only with the Combined and Z passes on (without them Blender says "To render grease pencil, enable Combined and Z passes" and the
+    strokes are missing). Grease Pencil also has an anti-aliasing of its own, apart from the render engine's (set_engine turns that one down), which is turned off
+    here: a sprite has hard edges. A scene with no Grease Pencil is left as it is. Returns whether there is Grease Pencil to render."""
+    if not any(o.type in GREASE_PENCIL for o in objects):
+        return False
+    attempt(view_layer, "use_pass_combined", True)
+    attempt(view_layer, "use_pass_z", True)
+    settings = getattr(scene, "grease_pencil_settings", None)
+    if settings is not None:
+        attempt(settings, "antialias_threshold_render", 0.0)
+        attempt(settings, "aa_samples", 1)
+    return True
+
+
 def add_camera(scene):
     data = bpy.data.cameras.new(HELPERS + "camera")
     data.type = "ORTHO"
@@ -416,6 +433,8 @@ def run(argv):
     say("%d collection%s, %g pixels per unit, view %s" % (len(framed), "" if len(framed) == 1 else "s", ppu, args.view))
 
     set_engine(scene, args.engine, args.samples)
+    if prepare_grease_pencil(scene, view_layer, visible.values()):
+        say("grease pencil: Combined and Z passes on, no anti-aliasing")
     add_light_if_needed(scene, visible, right, up, forward)
     cam = add_camera(scene)
     for index, (name, coll, objs, (lo, hi)) in enumerate(framed):

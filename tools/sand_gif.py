@@ -13,6 +13,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "Samples", "SlimeJumpDestructSand")
 ART = os.path.join(ROOT, "tools", "slime_heads", "art")          # the heads rendered with Blender (tools/slime_heads/render.py): KIND_N.png, 64x64
 HEADS = {2: "cat", 3: "dog", 4: "frog", 5: "ogre"}                      # enemy kind -> its art: a head on an ASCII body (tools/slime_heads/render.py)
+SAMPLE_ART = {"SlimeJumpFaces": os.path.join(ROOT, "tools", "slime_faces", "art")}     # a sample that has art of its own (tools/slime_faces/build.py): --art says it too
+
+def use_art(folder):
+    """Draw the enemies from `folder`: NAME_N.png for each frame N, anchors.json, and kinds.json ({"2": NAME, ...}) if the names are not the heads' (see build.py of slime_faces)."""
+    global ART, HEADS, _anchors
+    ART, _anchors = folder, None
+    _art.clear()
+    path = os.path.join(folder, "kinds.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            HEADS = {int(k): v for k, v in json.load(f).items()}
 ART_PPU = 16                                                       # art pixels to a world unit (the head is 32 pixels, 2 units)
 HEAD_FPS = 8
 
@@ -265,10 +276,17 @@ def anchors():
             _anchors = json.load(f)
     return _anchors
 
+def head_count(name):
+    """How many frames the art NAME has (NAME_0.png, NAME_1.png, ...)."""
+    n = 0
+    while os.path.exists(os.path.join(ART, "%s_%d.png" % (name, n))):
+        n += 1
+    return n or 8
+
 def head_frame(kind, frame):
-    """The 64x64 frame of a head for a game frame (100 a second): the sprite loops at HEAD_FPS."""
+    """The frame of an enemy's art for a game frame (100 a second): the sprite loops at HEAD_FPS."""
     name = HEADS[kind]
-    i = int(frame * HEAD_FPS / 100) % 8
+    i = int(frame * HEAD_FPS / 100) % head_count(name)
     if (name, i) not in _art:
         _art[(name, i)] = Image.open(os.path.join(ART, "%s_%d.png" % (name, i))).convert("RGBA")
     return _art[(name, i)]
@@ -347,7 +365,8 @@ def draw(fr, scale, noise):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--sample", default="SlimeJumpDestructSand", help="the folder of Samples/ to record (SlimeJumpHeads draws the heads of tools/slime_heads/art)")
+    ap.add_argument("--sample", default="SlimeJumpDestructSand", help="the folder of Samples/ to record (SlimeJumpHeads draws the heads of tools/slime_heads/art, SlimeJumpFaces the faces of tools/slime_faces/art)")
+    ap.add_argument("--art", metavar="DIR", help="draw the enemies from the art in DIR (default: the sample's own, else tools/slime_heads/art)")
     ap.add_argument("-o", "--out")
     ap.add_argument("--every", type=int, default=8)
     ap.add_argument("--scale", type=int, default=2)
@@ -355,6 +374,8 @@ def main():
     a = ap.parse_args()
     global SAMPLE
     SAMPLE = os.path.join(ROOT, "Samples", a.sample)
+    if a.art or a.sample in SAMPLE_ART:
+        use_art(os.path.abspath(a.art) if a.art else SAMPLE_ART[a.sample])
     if not a.out:
         a.out = os.path.join(SAMPLE, a.sample.lower() + ".gif")
     text, work = record(a.every)
