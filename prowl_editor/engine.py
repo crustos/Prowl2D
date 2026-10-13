@@ -16,6 +16,7 @@ import os
 import time
 
 from . import scenery
+from .model import LevelCells
 
 ABI_VERSION = 5
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -713,9 +714,12 @@ class Viewport:
             x1 = min(lv.width, int(self.cx + self.half * aspect) + 2)
             y0 = max(0, int(lv.height - (self.cy + self.half)) - 1)
             y1 = min(lv.height, int(lv.height - (self.cy - self.half)) + 2)
-            sprite_cache = {}
+            if getattr(self, "_pick_rev", None) != (proj.revision, id(lv)):          # (which variant a cell is drawn by does not change unless the project does)
+                self._pick_rev, self._picked = (proj.revision, id(lv)), {}
+            picked = self._picked
             cells = self.cells if self.playing else lv.cells
             hidden = {a["cell"] for a in self.actors if a.get("cell")} if self.playing else ()
+            view = LevelCells(lv, cells)                       # (what a road looks at to join up: the cells being played, not the level's)
             for y in range(y0, y1):
                 for x in range(x0, x1):
                     g_ = cells[y * lv.width + x]
@@ -724,9 +728,12 @@ class Viewport:
                     tile = proj.tiles.get(g_)
                     spr = None
                     if tile is not None:
-                        if g_ not in sprite_cache:
-                            sprite_cache[g_] = proj.sprite_for_tile(tile)
-                        spr = sprite_cache[g_]
+                        if tile.connects:
+                            spr = proj.sprite_for_tile(tile, x, y, view)                      # (a road looks at its neighbours, which a game changes)
+                        else:
+                            if (g_, x, y) not in picked:
+                                picked[(g_, x, y)] = proj.sprite_for_tile(tile, x, y, view)
+                            spr = picked[(g_, x, y)]
                     cx, cy = x + 0.5, lv.height - y - 0.5
                     tex = 0
                     if spr is not None:
@@ -751,7 +758,7 @@ class Viewport:
                 if a.get("script") and not self.engine.lib.p2d_node_active(a["node"]):
                     continue                                     # a script switched it off (a crumbled platform)
                 nx, ny, ang = self.engine.lib.p2d_node_x(a["node"]), self.engine.lib.p2d_node_y(a["node"]) + a.get("dy", 0.0), self.engine.lib.p2d_node_angle(a["node"])
-                spr = proj.sprite_for_tile(proj.tiles[a["tile"]]) if a.get("tile") in proj.tiles else None
+                spr = proj.sprite_for_tile(proj.tiles[a["tile"]], *(a.get("cell") or (None, None))) if a.get("tile") in proj.tiles else None
                 tex = 0
                 if spr is not None:
                     frame = int(self.clock * spr.fps) % len(spr.frames) if len(spr.frames) > 1 and spr.fps > 0 else 0

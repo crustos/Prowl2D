@@ -213,17 +213,18 @@ class LevelCanvas(QtWidgets.QWidget):
             self.setFixedSize(lv.width * self.cell + 1, lv.height * self.cell + 1)
         self.update()
 
-    def _tile_image(self, emoji):
+    def _tile_image(self, emoji, x=None, y=None):
         proj = self.studio.project
         rev = (proj.revision, proj.palette.version)
         if rev != self._icon_rev:
             self._icons = {}
             self._icon_rev = rev
-        if emoji not in self._icons:
-            tile = proj.tiles.get(emoji)
-            spr = proj.sprite_for_tile(tile) if tile else None
-            self._icons[emoji] = sprite_image(proj, spr, 0) if spr is not None else None
-        return self._icons[emoji]
+        tile = proj.tiles.get(emoji)
+        key = (emoji, tile.pick_variant(x, y, self.level()) if tile and x is not None else "")        # (a tile with variants has an image for each)
+        if key not in self._icons:
+            spr = proj.sprite_for_tile(tile, x, y, self.level()) if tile else None
+            self._icons[key] = sprite_image(proj, spr, 0) if spr is not None else None
+        return self._icons[key]
 
     def paintEvent(self, ev):
         lv = self.level()
@@ -245,7 +246,7 @@ class LevelCanvas(QtWidgets.QWidget):
                 rect = QtCore.QRect(x * c, y * c, c, c)
                 if not g:
                     continue
-                img = self._tile_image(g) if self.view == "sprites" else None
+                img = self._tile_image(g, x, y) if self.view == "sprites" else None
                 if img is not None:
                     p.drawImage(rect, img)
                 elif self.view == "emoji" and font_can_draw(font, g):

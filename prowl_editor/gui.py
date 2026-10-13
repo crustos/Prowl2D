@@ -422,7 +422,7 @@ class Studio(QtCore.QObject):
     def edit_tile(self, old, emoji, name, sprite, solid, dynamic=False, diggable=False):
         tiles = {}
         for k, t in self.project.tiles.items():          # keep the tile's place in the tile list
-            tiles[emoji if k == old else k] = TileDef(emoji, name, sprite, solid, dynamic, diggable) if k == old else t
+            tiles[emoji if k == old else k] = TileDef(emoji, name, sprite, solid, dynamic, diggable, t.face, t.clip, t.body, t.variants, t.patches, t.connects, t.joins) if k == old else t
         self.project.tiles = tiles
         if emoji != old:
             for lv in self.project.levels:

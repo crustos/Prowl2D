@@ -689,7 +689,7 @@ class CommandLine(TempDir):
         r = self.prowl("--no-gui", "--import-ascii", out, "--sprites", sprites, "--levels", levels)
         self.assertEqual(r.returncode, 0, r.stderr)
         p = Project.load(out)
-        self.assertEqual(([s.name for s in p.sprites], [l.name for l in p.levels], p.name), (["hero"], ["lvl"], "out"))
+        self.assertEqual(([s.name for s in p.sprites], [l.name for l in p.levels], p.name), (["hero"] + [n for n, _ in p.tiles["\U0001f9f1"].variants] + [s.name for s in p.sprites if s.name.startswith("brick_g")], ["lvl"], "out"))        # the level's 🧱 has no sprite: a brick is generated
 
     @unittest.skipUnless(LINUX, "needs a Linux machine with no display")
     def test_without_a_display_import_ascii_still_writes_the_file(self):

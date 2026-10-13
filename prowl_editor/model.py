@@ -15,8 +15,9 @@ as), and a level is a list of strings, one per row, of emoji. Loading checks the
 import copy
 import json
 import re
+import zlib
 
-from . import languages
+from . import generated, languages
 from .lights import DEFAULT_LIGHTING, clean_light, clean_lighting
 
 FORMAT = "prowl2d-project"
@@ -133,7 +134,9 @@ class Palette:
 
     def first_free_key(self):
         """A key not in use, preferring letters."""
-        for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@%&*+=~^$?!":
+        letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@%&*+=~^$?!"
+        more = [chr(c) for c in list(range(0x3B1, 0x3CA)) + [c for c in range(0xC0, 0x100) if c not in (0xD7, 0xF7)] + list(range(0x410, 0x450))]       # (the generated art uses a lot of colours)
+        for c in letters + "".join(more):
             if self.index_of(c) is None:
                 return c
         raise ProjectError("the palette has no free key left")
@@ -306,14 +309,74 @@ def slug(name):
     return re.sub(r"[\s_\-]+", "_", name.strip().lower())
 
 
+def _hash_cell(x, y, emoji):
+    """A number that looks random for the cell (x, y) and a tile, and is the same every time."""
+    h = (x * 0x9E3779B1 ^ y * 0x85EBCA6B ^ zlib.crc32(emoji.encode("utf-8"))) & 0xFFFFFFFF
+    h = ((h ^ (h >> 15)) * 0x2C1B3C6D) & 0xFFFFFFFF
+    h = ((h ^ (h >> 12)) * 0x297A2D39) & 0xFFFFFFFF
+    return h ^ (h >> 15)
+
+
+class LevelCells:
+    """A level's size with other cells than its own (the cells of a game being played): what pick_variant looks at to join roads up."""
+    def __init__(self, level, cells):
+        self.width, self.height, self.cells = level.width, level.height, cells
+
+    def get(self, x, y):
+        return self.cells[y * self.width + x] if (0 <= x < self.width and 0 <= y < self.height) else ""
+
+
 class TileDef:
-    def __init__(self, emoji, name, sprite="", solid=False, dynamic=False, diggable=False):
+    def __init__(self, emoji, name, sprite="", solid=False, dynamic=False, diggable=False, face=False, clip="", body="", variants=None, patches="", connects="", joins=None):
         self.emoji = emoji
         self.name = name         # natural, e.g. 'brick' or 'deciduous tree'
         self.sprite = sprite     # a sprite's name; "" means: the sprite with this tile's name, if there is one
         self.solid = solid       # the viewport's play mode gives it a collider
         self.dynamic = dynamic   # ...a movable body (a crate) instead of part of the static ground; implies a collider
         self.diggable = diggable  # a blast removes it (dirt); the viewport's play mode only
+        self.face = face         # the emoji is a face: a Grease Pencil head rendered by emoji_faces.py, on the ASCII art sprite `body`; `sprite` is the result
+        self.clip = clip         # ...which of the face's animations it plays ("" for the default, talk)
+        self.body = body         # ...the name of the sprite that is its body (it has a square of magenta '@' where the head goes)
+        self.variants = [[str(n), max(1, int(w))] for n, w in (variants or [])]     # [[sprite name, weight]]: the looks this tile has (brick, eroded brick, painted brick...); each cell of a level
+                                                                                    # is drawn by one of them, picked at random (but always the same one for the same cell): see pick_variant
+
+        self.connects = connects  # the name of a road's sprite (generated.road_name): the cell is drawn for its place in the street, the column of road cells it is in (pick_variant needs the level)
+        self.joins = list(joins or [])      # other tiles that count as this one when the cells around it are looked at (the cars parked in a street are road, for the road's sake)
+        self.patches = patches    # a prefix (such as "brick_g"): the cell (x, y) painted over by generated.patch_code is drawn by the sprite prefix + the code, when there is one
+
+    def pick_variant(self, x, y, level=None):
+        """The name of the variant that draws the cell (x, y) of a level, or "" if the tile has none. The weights say how often each is picked; the pick is a hash of the
+        cell and the tile, not a random number, so a level looks the same every time it is drawn and when other cells change."""
+        if self.connects:
+            kind, base = generated.split_connects(self.connects)
+            if level is None:
+                return base
+            group = {self.emoji, *self.joins}
+            same = lambda xx, yy: level.get(xx, yy) in group
+            up = down = left = right = 0
+            while y - up - 1 >= 0 and same(x, y - up - 1):                                    # the column goes up from here...
+                up += 1
+            while y + down + 1 < level.height and same(x, y + down + 1):                      # ...and down...
+                down += 1
+            while x - left - 1 >= 0 and same(x - left - 1, y):                                # ...and the run goes left and right
+                left += 1
+            while x + right + 1 < level.width and same(x + right + 1, y):
+                right += 1
+            return generated.joined_name(kind, base, x, y, up, down, left, right, y - up - 1 >= 0, y + down + 1 < level.height,
+                                         lambda xx, yy: _hash_cell(xx, yy, self.emoji))       # (past the level's edge it goes on: no kerb, no gutter)
+        if not self.variants:
+            return ""
+        if self.patches:
+            code = generated.patch_code(x, y, zlib.crc32(self.emoji.encode("utf-8")))
+            if code != "0000":
+                return self.patches + code
+        h = _hash_cell(x, y, self.emoji)
+        r = h % sum(w for _, w in self.variants)
+        for name, w in self.variants:
+            if r < w:
+                return name
+            r -= w
+        return self.variants[-1][0]
 
     def to_json(self):
         d = {"emoji": self.emoji, "name": self.name}
@@ -325,6 +388,20 @@ class TileDef:
             d["dynamic"] = True
         if self.diggable:
             d["diggable"] = True
+        if self.face:
+            d["face"] = True
+            if self.clip:
+                d["clip"] = self.clip
+            if self.body:
+                d["body"] = self.body
+        if self.variants:
+            d["variants"] = [list(v) for v in self.variants]
+        if self.patches:
+            d["patches"] = self.patches
+        if self.connects:
+            d["connects"] = self.connects
+        if self.joins:
+            d["joins"] = list(self.joins)
         return d
 
 
@@ -497,8 +574,13 @@ class Project:
             n += 1
         return "%s %d" % (base, n)
 
-    def sprite_for_tile(self, tile):
-        """The sprite that draws a tile: the one it names, else the one that has the tile's name (by slug), else None."""
+    def sprite_for_tile(self, tile, x=None, y=None, level=None):
+        """The sprite that draws a tile: the one it names, else the one that has the tile's name (by slug), else None. Given the cell (x, y) of a level, a tile that has
+        variants is drawn by the one that cell picks (TileDef.pick_variant), if the project still has that sprite."""
+        if x is not None and (tile.variants or tile.connects):
+            spr = self.sprite(tile.pick_variant(x, y, level))
+            if spr is not None:
+                return spr
         if tile.sprite:
             return self.sprite(tile.sprite)
         want = slug(tile.name)
@@ -600,7 +682,9 @@ class Project:
             if not isinstance(item, dict) or "emoji" not in item or "name" not in item:
                 raise ProjectError("tiles[%d]: expected {emoji, name}" % n)
             p.tiles[item["emoji"]] = TileDef(item["emoji"], item["name"], item.get("sprite", ""), bool(item.get("solid", False)),
-                                          bool(item.get("dynamic", False)), bool(item.get("diggable", False)))
+                                          bool(item.get("dynamic", False)), bool(item.get("diggable", False)),
+                                          bool(item.get("face", False)), str(item.get("clip", "")), str(item.get("body", "")),
+                                          item.get("variants"), str(item.get("patches", "")), str(item.get("connects", "")), item.get("joins"))
         for n, item in enumerate(data.get("scripts", [])):
             if not isinstance(item, dict) or "name" not in item:
                 raise ProjectError("scripts[%d]: expected {name, text, language}" % n)

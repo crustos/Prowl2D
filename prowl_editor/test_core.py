@@ -175,6 +175,211 @@ class LevelText(unittest.TestCase):
         self.assertEqual(q.tiles["\U0001f9f1"].name, "brick")
         self.assertEqual(q.sprite_for_tile(q.tiles["\U0001f9f1"]).name, "brick")
 
+    def test_a_brick_tile_with_no_sprite_gets_a_generated_one(self):
+        p = Project("p")
+        import_levels("\U0001f9f1\U0001f9f1\n", p)
+        s = p.sprite("brick")
+        self.assertEqual((s.width, s.height), (16, 16))
+        self.assertIs(p.sprite_for_tile(p.tiles["\U0001f9f1"]), s)                    # (with no cell: the plain one)
+        mortar = {s.get(0, x, 15) for x in range(16)}                      # the bottom row of the wall is one course's bed joint
+        self.assertEqual(len(mortar), 1)
+
+    def test_bricks_have_variants_picked_cell_by_cell(self):
+        p = Project("p")
+        import_levels("\U0001f9f1\U0001f9f1\n", p)
+        t = p.tiles["\U0001f9f1"]
+        names = [n for n, _ in t.variants]
+        self.assertEqual(names[0], "brick")
+        self.assertTrue({"brick_b", "brick_eroded", "brick_flecked", "brick_painted", "brick_missing", "brick_weep", "brick_drain", "brick_pipe",
+                          "brick_dirty", "brick_soot", "brick_rust", "brick_tar", "brick_tag", "brick_throwup", "brick_sticker", "brick_poster", "brick_buffed"} <= set(names))
+        self.assertEqual([s.name for s in p.sprites if not s.name.startswith("brick_g")], names)
+        picks = [t.pick_variant(x, y) for y in range(100) for x in range(100)]
+        self.assertEqual(picks, [t.pick_variant(x, y) for y in range(100) for x in range(100)])      # the same every time
+        count = {n: picks.count(n) for n in names}
+        plain = count["brick"] + count["brick_b"] + count["brick_c"]
+        self.assertTrue(2000 < plain < 3500, count)                                                  # the plain ones in three shades are the most common (a third is painted over)
+        self.assertTrue(0 < count["brick_missing"] < 200 and 0 < count["brick_pipe"] < 200 and count["brick_eroded"] > count["brick_missing"], count)
+        self.assertEqual(p.sprite_for_tile(t, 3, 4).name, t.pick_variant(3, 4))
+        self.assertGreater(len({p.sprite_for_tile(t, x, 0).name for x in range(40)}), 3)               # a row of a level is not one brick
+        self.assertEqual(Project.from_json(json.loads(json.dumps(p.to_json()))).tiles["\U0001f9f1"].variants, t.variants)
+
+    def test_brick_variants_tile_with_each_other(self):
+        from .generated import family
+        rows = {n: [r for r in text.splitlines() if not r.startswith("#")] for n, _, text in family("brick")}
+        for n, r in rows.items():
+            self.assertEqual((len(r), {len(x) for x in r}), (16, {16}), n)
+            if n == "brick_downpipe":
+                self.assertEqual(r[0][6:10], r[15][6:10])                                         # a pipe down the whole sprite: two of them are one pipe
+                self.assertEqual(r[0][6:10], "LGGZ")
+            elif n in ("brick", "brick_b", "brick_c", "brick_eroded", "brick_worn", "brick_flecked", "brick_painted", "brick_missing"):
+                self.assertEqual(set(r[15]), {"M"}, n)                                            # the joints are where the plain wall has them
+                self.assertEqual(r[3], "M" * 16, n)
+            if "tag" in n or n in ("brick_throwup", "brick_star"):
+                self.assertTrue(any(ch in "rbgypoc" for row in r for ch in row), n)               # spray paint, over the joints too
+
+    def test_the_city_paints_over_the_bricks_in_patches_that_ignore_the_tiling(self):
+        from .generated import patch_code
+        p = Project("p")
+        text = "\n".join("\U0001f9f1" * 40 for _ in range(10)) + "\n"
+        (lv,), _ = import_levels(text, p)
+        t = p.tiles["\U0001f9f1"]
+        self.assertEqual(t.patches, "brick_g")
+        codes = [patch_code(x, y, 0) for y in range(10) for x in range(40)]
+        self.assertEqual(codes, [patch_code(x, y, 0) for y in range(10) for x in range(40)])                  # a function of the place
+        painted = [c for c in codes if c != "0000"]
+        self.assertTrue(80 < len(painted) < 300, len(painted))                                                  # a good part of the wall, not all of it
+        self.assertTrue(any(len(set(c)) > 1 and "0" in c for c in painted))                                     # an edge falls inside a cell, on a half
+        self.assertTrue(any(c in "1111 2222 3333 4444".split() for c in painted))                               # and a patch covers whole cells
+        for x, y in ((x, y) for y in range(10) for x in range(40)):
+            name = t.pick_variant(x, y)
+            self.assertIsNotNone(p.sprite_for_tile(t, x, y), name)
+            if patch_code(x, y, __import__("zlib").crc32(t.emoji.encode("utf-8"))) != "0000":
+                self.assertTrue(name.startswith("brick_g"), name)
+                self.assertEqual(p.sprite_for_tile(t, x, y).name, name)                                         # the sprite is there: made for this level
+        self.assertEqual(Project.from_json(json.loads(json.dumps(p.to_json()))).tiles["\U0001f9f1"].patches, "brick_g")
+
+    def test_a_street_is_drawn_for_each_cell_s_place_in_it(self):
+        from .generated import GUTTER, KERB, LINE, road_name
+        from .model import LevelCells
+        road, wall = "\u25fc\ufe0f", "\U0001f9f1"
+        p = Project("p")
+        rows = ["\u2b1b" * 4, wall * 4, road * 4, road * 4, road * 4, road * 4]                    # a street four cells deep, along the bottom of the level
+        (lv,), _ = import_levels("# level: r\n# empty: \u2b1b\n" + "\n".join(rows) + "\n", p)
+        t = p.tiles[road]
+        self.assertEqual((t.name, t.connects), ("road", "road"))
+        self.assertEqual(len([s for s in p.sprites if s.name.startswith("road")]), 40)
+        self.assertEqual(p.sprite_for_tile(t).name, "road")                                       # (the icon: asphalt with the line)
+
+        def shape(level, x, y):
+            n = t.pick_variant(x, y, level)
+            return LINE if n == "road" else int(n.split("_")[1])
+        self.assertEqual([shape(lv, 1, y) for y in range(2, 6)], [KERB, 0, LINE, 0])                # the kerb on top, the line in the lower middle, no gutter at the level's edge
+        self.assertEqual(len({shape(lv, x, 4) for x in range(4)}), 1)                              # the same all the way along
+        for y in range(2, 6):
+            self.assertIsNotNone(p.sprite_for_tile(t, 1, y, lv))
+        two = LevelCells(lv, list(lv.cells))                                                       # a street two cells deep, with the rest of the level under it
+        for x in range(4):
+            two.cells[4 * 4 + x] = two.cells[5 * 4 + x] = ""
+        self.assertEqual([shape(two, 0, y) for y in (2, 3)], [KERB, LINE | GUTTER])                # (two cells deep: the line is in the lower; the gutter is where the street ends)
+        top = LevelCells(lv, list(lv.cells))                                                       # a street that starts at the top of the level goes on up: no kerb
+        for x in range(4):
+            top.cells[x] = top.cells[4 + x] = road
+        self.assertEqual(shape(top, 1, 0) & KERB, 0)
+        self.assertEqual(Project.from_json(json.loads(json.dumps(p.to_json()))).tiles[road].connects, "road")
+        self.assertEqual(road_name("road", 0, 0), "road_0_0")
+
+    def test_a_street_scene_from_the_level_text(self):
+        from .model import LevelCells
+        legend = "\n".join("# %s = %s" % kv for kv in (("\U0001f533", "sidewalk"), ("\u25fc\ufe0f", "road"), ("\U0001f697", "car"), ("\U0001f4a1", "streetlamp"),
+                                                       ("\U0001f9ef", "hydrant"), ("\U0001fa9f", "window"), ("\U0001f6aa", "door"), ("\U0001f512", "shutter"),
+                                                       ("\U0001f3aa", "awning"), ("\U0001f3e8", "motel sign"), ("\U0001f37e", "liquor sign"), ("\U0001f4fa", "tv sign"),
+                                                       ("\U0001f5d1\ufe0f", "dumpster")))
+        rows = ["\U0001fa9f\U0001f6aa\U0001f512\U0001f3aa", "\U0001f3e8\U0001f37e\U0001f4fa\u2b1b", "\u2b1b\U0001f4a1\u2b1b\u2b1b", "\u2b1b\U0001f4a1\u2b1b\u2b1b", "\u2b1b\U0001f4a1\u2b1b\U0001f5d1\ufe0f", "\U0001f533\U0001f9ef\U0001f533\U0001f533",
+                "\u25fc\ufe0f\u25fc\ufe0f\u25fc\ufe0f\u25fc\ufe0f", "\u25fc\ufe0f\U0001f697\U0001f697\U0001f697", "\u25fc\ufe0f\u25fc\ufe0f\u25fc\ufe0f\u25fc\ufe0f"]
+        p = Project("p")
+        (lv,), _ = import_levels("# level: s\n# empty: \u2b1b\n" + legend + "\n" + "\n".join(rows) + "\n", p)
+        names = {s.name for s in p.sprites}
+        for base in ("sidewalk", "road", "car", "streetlamp", "hydrant", "window", "door", "shutter", "awning", "motel_sign", "liquor_sign", "tv_sign", "dumpster"):
+            self.assertIn(base, names)
+        for tile in p.tiles.values():
+            for x in range(lv.width):
+                for y in range(lv.height):
+                    if lv.get(x, y) == tile.emoji:
+                        self.assertIsNotNone(p.sprite_for_tile(tile, x, y, lv), (tile.name, x, y))
+        car, lamp, road, walk = (p.tiles[e] for e in ("\U0001f697", "\U0001f4a1", "\u25fc\ufe0f", "\U0001f533"))
+        self.assertEqual([car.pick_variant(x, 7, lv).split("_")[1] for x in (1, 2, 3)], ["l", "m", "r"])           # three cells: a car
+        self.assertEqual(len({car.pick_variant(x, 7, lv).split("_")[2] for x in (1, 2, 3)}), 1)                      # of one colour
+        self.assertEqual([lamp.pick_variant(1, y, lv).split("_")[1] if "_" in lamp.pick_variant(1, y, lv) else "1" for y in range(2, 5)], ["1", "0", "2"])   # the head, the pole, the foot
+        self.assertEqual(road.joins, [car.emoji])                                                                    # a car in the street is road to the street
+        shape = lambda n: 0 if "_" not in n else int(n.split("_")[1])
+        self.assertEqual([shape(road.pick_variant(2, y, lv)) & 1 for y in (6, 7, 8)], [1, 0, 0])                   # kerb on top, none under the car
+        self.assertEqual(shape(walk.pick_variant(0, 5, lv)), 1)                                                      # the top row of the pavement is in the wall's shade
+        self.assertEqual(Project.from_json(json.loads(json.dumps(p.to_json()))).tiles[road.emoji].joins, [car.emoji])
+
+    def test_rocks_have_variants_too(self):
+        p = Project("p")
+        import_levels("\U0001faa8\U0001faa8\n", p)
+        t = p.tiles["\U0001faa8"]
+        names = [n for n, _ in t.variants]
+        self.assertEqual((t.name, names[0]), ("rock", "rock"))
+        self.assertTrue({"rock_wide", "rock_pair", "rock_pebbles", "rock_mossy", "rock_sandstone", "rock_basalt"} <= set(names))
+        for n in names:
+            s = p.sprite(n)
+            self.assertEqual((s.width, s.height, s.get(0, 0, 0)), (16, 16, 0), n)
+            self.assertTrue(any(s.get(0, x, y) for x in range(16) for y in range(8, 16)), n)
+        self.assertGreater(len({t.pick_variant(x, 0) for x in range(60)}), 5)
+
+    def test_trees_have_variants_too(self):
+        p = Project("p")
+        import_levels("\U0001f333\U0001f333\n", p)
+        t = p.tiles["\U0001f333"]
+        names = [n for n, _ in t.variants]
+        self.assertEqual(names[0], "deciduous_tree")
+        self.assertTrue({"deciduous_tree_pine", "deciduous_tree_birch", "deciduous_tree_apple", "deciduous_tree_autumn", "deciduous_tree_bare"} <= set(names))
+        self.assertIs(p.sprite_for_tile(t), p.sprite("deciduous_tree"))
+        for n in names:
+            s = p.sprite(n)
+            self.assertEqual((s.width, s.height), (16, 16))
+            self.assertEqual(s.get(0, 0, 0), 0)                                                   # the corners are clear
+            self.assertTrue(any(s.get(0, x, 15) for x in range(16)), n)                         # standing on the bottom row
+        self.assertGreater(len({t.pick_variant(x, 0) for x in range(60)}), 4)
+
+    def test_generated_bricks_are_not_made_when_the_project_has_a_sprite(self):
+        p = Project("p")
+        import_sprites("# sprite: brick\nRR\nRR\n", p)
+        import_levels("\U0001f9f1\n", p)
+        self.assertEqual([(s.name, s.width) for s in p.sprites], [("brick", 2)])
+        self.assertEqual(p.tiles["\U0001f9f1"].variants, [])
+
+    def test_generated_bricks_follow_the_legend_sprite_name(self):
+        p = Project("p")
+        import_levels("# \U0001f9f1 = wall (solid) -> brick\n\U0001f9f1\n", p)
+        self.assertEqual(p.sprite_for_tile(p.tiles["\U0001f9f1"]).name, "brick")
+        q = Project("q")
+        import_levels("# \U0001f9f1 = wall (solid) -> mystery\n\U0001f9f1\n", q)       # a name nothing makes: no sprite, and no guess
+        self.assertEqual(q.sprites, [])
+
+    def test_typing_a_brick_in_the_text_pane_makes_the_sprite_too(self):
+        p = Project("p")
+        (lv,), _ = import_levels(".\n", p)
+        self.assertEqual(p.sprites, [])
+        level_from_text(lv, "\U0001f9f1.\n", p)
+        self.assertIsNotNone(p.sprite("brick"))
+
+    def test_brick_art_is_deterministic_and_tiles(self):
+        from .generated import brick_rows, brick_text
+        self.assertEqual(brick_rows(16, 3), brick_rows(16, 3))
+        self.assertNotEqual(brick_rows(16, 3), brick_rows(16, 4))
+        for rows in (brick_rows(16), brick_rows(24, 1)):
+            n = len(rows)
+            self.assertTrue(all(len(r) == n for r in rows))
+            self.assertEqual(set(rows[-1]), {"M"})                            # a bed joint closes the tile, so it tiles downward
+            for y in range(n):                                                # a head joint is never next to another across the seam
+                self.assertFalse(rows[y][-1] == "M" and rows[y][0] == "M" and rows[y] != "M" * n)
+        self.assertTrue(brick_text("wall", 8).startswith("# sprite: wall\n"))
+        with self.assertRaises(ValueError):
+            brick_rows(12)
+
+    def test_a_face_tile_keeps_its_body_and_clip_and_round_trips(self):
+        p = Project("p")
+        import_levels("# \U0001f92a = zany (face) -> body_bat\n# \U0001f620 = grump (face=shake, solid) -> body_legs\n\U0001f92a\U0001f620\n", p)
+        a, b = p.tiles["\U0001f92a"], p.tiles["\U0001f620"]
+        self.assertEqual((a.face, a.clip, a.body, a.sprite), (True, "", "body_bat", ""))        # the sprite is made later, from the body
+        self.assertEqual((b.face, b.clip, b.body, b.solid), (True, "shake", "body_legs", True))
+        text = export_level(p.levels[0], p)
+        self.assertIn("# \U0001f92a = zany (face) -> body_bat", text)
+        self.assertIn("# \U0001f620 = grump (solid, face=shake) -> body_legs", text)
+        again = Project("again")
+        import_levels(text, again)
+        self.assertEqual({k: (t.face, t.clip, t.body) for k, t in p.tiles.items()}, {k: (t.face, t.clip, t.body) for k, t in again.tiles.items()})
+        loaded = Project.from_json(p.to_json()).tiles["\U0001f620"]
+        self.assertEqual((loaded.face, loaded.clip, loaded.body), (True, "shake", "body_legs"))                  # and through the project file
+
+    def test_a_face_tile_is_not_given_a_generated_sprite(self):
+        p = Project("p")
+        import_levels("# \U0001f9f1 = brick (face) -> body_x\n\U0001f9f1\n", p)
+        self.assertEqual(p.sprites, [])
+
     def test_ascii_levels_work_even_with_hash_walls(self):
         p = Project("p")
         (lv,), new = import_levels(". . .\n# #  #\n", p)           # a row starting "# " is a row, not a comment
@@ -1750,3 +1955,268 @@ class ScriptScan(unittest.TestCase):
         code, out = self.run_tool(other.name)
         self.assertEqual(code, 1)
         self.assertIn("error GEN0002: two scripts are called Same (Other.rs and Same.cpp)", out)                    # (across languages)
+
+
+class EmojiFaces(unittest.TestCase):
+    """emoji_faces.py without Blender: the parts around the render (the render itself is run by prowl.py --import-ascii with Blender and blender.py)."""
+
+    def body_project(self):
+        p = Project("p")
+        import_sprites("# sprite: body\n# palette: @=#ff00ff P=#6b4a8f\n"
+                       "P....P\n"
+                       "P.@@.P\n"
+                       "P.@@.P\n\n"
+                       "PP..PP\n"
+                       "P.@@.P\n"
+                       "P.@@.P\n", p)
+        return p
+
+    def test_emoji_codes_are_blender_py_file_names(self):
+        from .emoji_faces import emoji_code
+        self.assertEqual(emoji_code("\U0001f92a"), "1f92a")
+        self.assertEqual(emoji_code("☠️"), "2620")                         # the variation selector is not part of the name
+
+    def test_the_generator_is_found_by_path_or_environment_or_not_at_all(self):
+        from .emoji_faces import FaceError, find_generator
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        with open(os.path.join(d.name, "blender.py"), "w") as f:
+            f.write("")
+        self.assertEqual(find_generator(d.name), os.path.join(d.name, "blender.py"))                               # a folder
+        self.assertEqual(find_generator(os.path.join(d.name, "blender.py")), os.path.join(d.name, "blender.py"))   # or the file
+        with mock.patch.dict(os.environ, {"EMOJI_GEN": d.name}):
+            self.assertEqual(find_generator(), os.path.join(d.name, "blender.py"))
+        with self.assertRaises(FaceError) as e:
+            find_generator(os.path.join(d.name, "nothere"))
+        self.assertIn("--emoji-gen", str(e.exception))
+        with mock.patch.dict(os.environ, {"EMOJI_GEN": ""}), mock.patch("os.path.isfile", return_value=False):
+            with self.assertRaises(FaceError) as e:
+                find_generator()
+        self.assertIn("git clone", str(e.exception))
+
+    def test_a_body_says_where_the_head_goes_in_every_frame(self):
+        from .emoji_faces import marker_boxes
+        p = self.body_project()
+        boxes, marks = marker_boxes(p, p.sprite("body"))
+        self.assertEqual(boxes, [(2, 1, 2, 2), (2, 1, 2, 2)])
+        import_sprites("# sprite: bare\nPP\nPP\n", p)
+        from .emoji_faces import FaceError
+        with self.assertRaises(FaceError):
+            marker_boxes(p, p.sprite("bare"))
+
+    def test_the_head_replaces_the_square_and_stands_on_its_floor(self):
+        from .emoji_faces import compose
+        p = self.body_project()
+        red = p.palette.add("r", "red", (200, 0, 0))
+        head = Sprite("head", 2, 1)                              # 2 wide, 1 high: smaller than the 2x2 square, so it is centred and on the floor
+        head.frames = [bytearray([red, red]), bytearray([0, red])]
+        out = compose(p, "out", p.sprite("body"), head, 4)
+        self.assertEqual((out.width, out.height, len(out.frames)), (6, 3, 4))
+        marks = [i for i, e in enumerate(p.palette.entries) if e.rgb == (255, 0, 255)]
+        self.assertTrue(all(v not in marks for f in out.frames for v in f))                               # no '@' is left: the square is the head, or empty
+        self.assertEqual([out.get(0, x, 2) for x in (2, 3)], [red, red])                                    # the head's row is the floor of the square
+        self.assertEqual([out.get(0, x, 1) for x in (2, 3)], [0, 0])
+        self.assertEqual([out.get(1, x, 2) for x in (2, 3)], [red, red])                                    # frames 0 and 1 of 4: head frame 0 (0 * 2 // 4, 1 * 2 // 4)
+        self.assertEqual([out.get(2, x, 2) for x in (2, 3)], [0, red])                                      # frame 2 is the head's second frame
+        body = p.sprite("body")
+        self.assertEqual([out.get(i, 1, 0) for i in range(4)], [body.get(0, 1, 0), body.get(1, 1, 0), body.get(0, 1, 0), body.get(1, 1, 0)])      # the body's frames go round
+
+    def test_a_face_without_a_body_is_an_error_that_says_so(self):
+        from .emoji_faces import FaceError, make_face_sprites
+        p = Project("p")
+        import_levels("# \U0001f92a = zany (face) -> body_missing\n\U0001f92a\n", p)
+        with self.assertRaises(FaceError) as e:
+            make_face_sprites(p)
+        self.assertIn("body_missing", str(e.exception))
+
+    def test_a_face_that_has_its_sprite_is_not_made_again(self):
+        from .emoji_faces import make_face_sprites
+        p = self.body_project()
+        import_levels("# \U0001f92a = zany (face) -> body\n\U0001f92a\n", p)
+        p.tiles["\U0001f92a"].sprite = "body"                    # (as after a first run, or from a saved project)
+        with mock.patch("prowl_editor.emoji_faces.find_generator", side_effect=AssertionError("must not run")):
+            self.assertEqual(make_face_sprites(p), [])
+
+
+class SlimeJumpFacesAssets(unittest.TestCase):
+    """The files of Samples/SlimeJumpFaces and tools/slime_faces that need no Blender: the bodies, the level, and that the level and Level.cs agree."""
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def tool(self, name):
+        spec = importlib.util.spec_from_file_location("slime_faces_" + name, os.path.join(self.ROOT, "tools", "slime_faces", name + ".py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def read(self, *path):
+        with open(os.path.join(self.ROOT, *path), encoding="utf-8") as f:
+            return f.read()
+
+    def test_the_bodies_file_is_what_make_bodies_writes(self):
+        from . import asciiart
+        self.assertEqual(self.tool("make_bodies").text(), self.read("tools", "slime_faces", "bodies.txt"))          # (so the art can be changed in one place)
+        blocks = asciiart.parse_sprite_text(self.read("tools", "slime_faces", "bodies.txt"))
+        self.assertEqual([b.name for b in blocks], ["body_spring", "body_jet", "body_spider", "body_golem"])
+        for b in blocks:
+            self.assertEqual(len(b.frames), 4, b.name)
+            self.assertEqual(b.header_colors["@"], (255, 0, 255), b.name)                                         # the colour emoji_faces.py looks for
+            for rows in b.frames:
+                self.assertEqual({len(r) for r in rows}, {len(b.frames[0][0])}, b.name)                           # every frame is the same size
+                self.assertEqual(len(rows), len(b.frames[0]), b.name)
+                cells = [(x, y) for y, r in enumerate(rows) for x, c in enumerate(r) if c == "@"]
+                xs, ys = [x for x, _ in cells], [y for _, y in cells]
+                self.assertEqual((max(xs) - min(xs) + 1, max(ys) - min(ys) + 1, len(cells)), (32, 32, 1024), b.name)      # a full 32 x 32 square: the head
+
+    def test_the_level_is_the_shaft_with_four_faces_that_have_bodies(self):
+        from . import asciiart
+        (block,) = asciiart.parse_level_text(self.read("Samples", "SlimeJumpFaces", "level.txt"))
+        self.assertEqual((len(block.rows), {len(r) for r in block.rows}, block.empty), (96, {18}, "⬛"))
+        bodies = {b.name for b in asciiart.parse_sprite_text(self.read("tools", "slime_faces", "bodies.txt"))}
+        faces = {g: traits for g, (_, _, traits) in block.legend.items() if any(t.startswith("face") for t in traits)}
+        self.assertEqual(sorted(faces), sorted(["\U0001f92a", "\U0001f620", "\U0001f631", "\U0001f92f"]))
+        for g in faces:
+            self.assertIn(block.legend[g][1], bodies)                                                              # `-> body` is one of the bodies
+        project = Project("p")
+        import_levels(self.read("Samples", "SlimeJumpFaces", "level.txt"), project)
+        self.assertEqual([t.emoji for t in project.tiles.values() if t.face], list(faces))
+
+    def test_level_txt_and_level_cs_agree_and_the_check_notices_when_they_do_not(self):
+        build = self.tool("build")
+        self.assertEqual(build.check(), ["\U0001f92a", "\U0001f620", "\U0001f631", "\U0001f92f"])                   # kind 2 first, as Level.EnemyKind says
+        lines = self.read("Samples", "SlimeJumpFaces", "level.txt").split("\n")
+        row = next(i for i, l in enumerate(lines) if l.startswith("\U0001f9f1") and "\U0001f92a" in l)             # the row of the zany face (a level row, not the legend)
+        col = lines[row].index("\U0001f92a")                                                                       # (every emoji of this level is one character)
+        moved = list(lines)
+        moved[row] = lines[row].replace("\U0001f92a", "⬛")
+        moved[row + 3] = lines[row + 3][:col] + "\U0001f92a" + lines[row + 3][col + 1:]                           # three cells lower: not where the game puts it
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        path = os.path.join(d.name, "level.txt")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(moved))
+        build.LEVEL = path
+        with self.assertRaises(SystemExit) as e:                                                                   # the zany face is gone from where the game puts it
+            build.check()
+        self.assertIn("enemy 0", str(e.exception))
+
+
+@unittest.skipUnless(os.environ.get("BLENDER") and os.path.isfile(os.path.join(os.environ.get("EMOJI_GEN", ""), "blender.py")),
+                     "needs Blender ($BLENDER) and the emoji generator ($EMOJI_GEN: the folder of its blender.py)")
+class EmojiFacesWithBlender(unittest.TestCase):
+    """The whole chain: prowl.py --import-ascii runs blender.py (which runs Blender), renders the Grease Pencil head with Cycles and puts it on an ASCII body."""
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def test_a_face_in_a_level_becomes_a_sprite_on_its_body(self):
+        d = tempfile.TemporaryDirectory()
+        self.addCleanup(d.cleanup)
+        level = os.path.join(d.name, "faces.txt")
+        with open(level, "w", encoding="utf-8") as f:
+            f.write("# level: one\n# empty: ⬛\n# \U0001f92a = zany (face=blink) -> body_spring\n⬛\U0001f92a\n")
+        out = os.path.join(d.name, "out.json")
+        run = subprocess.run([sys.executable, os.path.join(self.ROOT, "prowl.py"), "--import-ascii", out, "--sprites", os.path.join(self.ROOT, "tools", "slime_faces", "bodies.txt"),
+                              "--levels", level, "--no-gui"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, timeout=600)
+        self.assertEqual(run.returncode, 0, run.stdout)
+        p = Project.load(out)
+        tile = p.tiles["\U0001f92a"]
+        sprite = p.sprite(tile.sprite)
+        body = p.sprite("body_spring")
+        self.assertEqual((tile.sprite, (sprite.width, sprite.height, len(sprite.frames))), ("zany", (body.width, body.height, 8)))
+        marks = {i for i, e in enumerate(p.palette.entries) if e.rgb == (255, 0, 255)}
+        self.assertTrue(all(v not in marks for f in sprite.frames for v in f))                              # the head is where the magenta square was
+        top = [sprite.get(0, x, y) for y in range(0, 28) for x in range(4, 36)]
+        self.assertGreater(sum(1 for v in top if v), 300)                                                  # and it is drawn: hundreds of opaque pixels over the spring
+        self.assertTrue(all(len({v for v in f if v}) > 5 for f in sprite.frames))                        # in colours, not a silhouette
+
+
+class ClassicalPimpAssets(unittest.TestCase):
+    """The files of Samples/ClassicalPimp and tools/classic_pimp that need no game: the street, the characters, the HUD."""
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def tool(self, name):
+        folder = os.path.join(self.ROOT, "tools", "classic_pimp")
+        sys.path.insert(0, folder)                                              # (make_characters imports puppet from beside it)
+        try:
+            spec = importlib.util.spec_from_file_location("classic_pimp_" + name, os.path.join(folder, name + ".py"))
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.remove(folder)
+        return module
+
+    def read(self, *path):
+        with open(os.path.join(self.ROOT, *path), encoding="utf-8") as f:
+            return f.read()
+
+    def test_the_files_are_what_the_tools_write(self):
+        self.assertEqual("\n".join(self.tool("make_level").build()) + "\n", "".join(l + "\n" for l in self.read("Samples", "ClassicalPimp", "level.txt").splitlines() if not l.startswith("#")))
+        self.assertEqual(self.tool("make_characters").text(), self.read("tools", "classic_pimp", "characters.txt"))
+        self.assertEqual(self.tool("make_hud").text(), self.read("tools", "classic_pimp", "hud.txt"))
+        self.assertEqual(self.tool("make_butterfly").text(), self.read("tools", "classic_pimp", "butterfly.txt"))
+
+    def test_the_spin_kick_and_the_launched_hoes(self):
+        from . import asciiart
+        blocks = {b.name: b for b in asciiart.parse_sprite_text(self.read("tools", "classic_pimp", "characters.txt"))}
+        self.assertEqual(len(blocks["pimp_spinkick"].frames), 8)
+        self.assertEqual(len(blocks["pimp_confused"].frames), 3)
+        for look in ("red", "blue", "green", "yellow", "pink"):                                   # Shared.Looks = 5, in this order
+            self.assertEqual(len(blocks["hoe_%s_launch" % look].frames), 4, look)
+            for anim in ("idle", "walk", "hit", "fall"):
+                self.assertIn("hoe_%s_%s" % (look, anim), blocks)
+
+    def test_the_butterfly_scenes_fit_their_window(self):
+        from . import asciiart
+        blocks = asciiart.parse_sprite_text(self.read("tools", "classic_pimp", "butterfly.txt"))
+        got = {b.name: (len(b.frames), len(b.frames[0][0]), len(b.frames[0])) for b in blocks}
+        self.assertEqual(got, {"butterfly_family": (8, 96, 56), "butterfly_dogs": (8, 96, 56), "butterfly_rain": (8, 96, 56), "butterfly_static": (4, 96, 56)})
+
+    def test_the_game_logic_plays_through_in_c_and_on_dotnet(self):
+        """Samples/ClassicalPimp/*.cs is the game: a bot plays the street, and the C build and .NET must print the same (needs dotnet, CCSharp and the native library)."""
+        import shutil
+        import subprocess
+        if not shutil.which("dotnet") or not os.path.exists(os.path.join(self.ROOT, "..", "CCSharp")) or not os.path.exists(os.path.join(self.ROOT, "Libraries", "linux-x64", "native", "libprowl_box2d.so")):
+            self.skipTest("the C# to C toolchain is not here (python3 build.py deps --ccsharp; python3 build.py native)")
+        r = subprocess.run([sys.executable, os.path.join(self.ROOT, "build.py"), "player", "Samples/ClassicalPimp", "--verify", "--run"], cwd=self.ROOT, capture_output=True, text=True, timeout=900)
+        self.assertEqual(r.returncode, 0, r.stdout[-1500:] + r.stderr[-1500:])
+        self.assertIn("verify    ok", r.stdout)
+        self.assertIn("won=1", r.stdout)
+        self.assertIn("boss dead=1", r.stdout)
+        self.assertRegex(r.stdout, r"launches=[1-9]\d* palette swaps=[1-9]\d* confused=[1-9]")
+
+    def test_the_level_is_four_screens_of_a_street(self):
+        from . import asciiart
+        block, = asciiart.parse_level_text(self.read("Samples", "ClassicalPimp", "level.txt"))
+        self.assertEqual((len(block.rows[0]), len(block.rows)), (76, 14))                                         # 4 screens of 19 x 14 cells of 16 pixels: 304 x 224
+        self.assertTrue(all(len(r) == 76 for r in block.rows))
+        self.assertEqual(set(block.rows[13]), {"\u25fc\ufe0f"})                                                   # the street along the bottom, four rows deep
+        self.assertEqual({row[0] for row in block.rows[10:]}, {"\u25fc\ufe0f"})
+
+    def test_the_characters_stand_on_one_line_and_only_the_hoes_shimmer(self):
+        from . import asciiart
+        blocks = {b.name: b for b in asciiart.parse_sprite_text(self.read("tools", "classic_pimp", "characters.txt"))}
+        self.assertEqual({len(b.frames) for n, b in blocks.items() if n.endswith("_idle")}, {4})
+        self.assertEqual(len(blocks["pimp_walk"].frames), 6)
+        self.assertEqual(len(blocks["pimp_slap"].frames), 5)
+        for name, b in blocks.items():
+            for frame in b.frames:
+                self.assertEqual((len(frame), {len(r) for r in frame}), (100, {96}), name)
+            if "fall" not in name and "launch" not in name:                                                      # (a hoe blasted off the screen is in the air)
+                for frame in b.frames:
+                    low = max(y for y, r in enumerate(frame) if set(r) - {"."})
+                    self.assertTrue(94 <= low <= 99, (name, low))                                                  # the feet are on the floor line in every frame
+        light = lambda frame: sum(r.count("c") + r.count("w") + r.count("C") for r in frame)
+        for name in ("pimp_idle", "pimp_walk"):
+            self.assertEqual([light(f) for f in blocks[name].frames], [0] * len(blocks[name].frames), name)       # the Classical Pimp is solid
+        self.assertEqual([light(f) > 0 for f in blocks["pimp_slap"].frames], [False, True, True, False, False])     # but the slap is a measurement: the burst
+        idle = blocks["hoe_red_idle"].frames
+        self.assertTrue(all(light(f) > 20 for f in idle))                                                          # a Probability Hoe's edges shimmer...
+        self.assertEqual(len({tuple(f) for f in idle}), 4)                                                         # ...differently in every frame
+        self.assertEqual(light(blocks["hoe_red_fall"].frames[-1]), 0)                                              # until she is measured: down, she is solid
+        self.assertEqual(blocks["hoe_red_idle"].frames[0].__len__(), blocks["hoe_blue_idle"].frames[0].__len__())
+        self.assertNotEqual(blocks["hoe_red_idle"].header_colors["d"], blocks["hoe_blue_idle"].header_colors["d"])  # one body, three looks: only the palette differs
+
+    def test_the_hud_sprites_fit(self):
+        from . import asciiart
+        for b in asciiart.parse_sprite_text(self.read("tools", "classic_pimp", "hud.txt")):
+            self.assertTrue(len(b.frames[0]) <= 256 and max(len(r) for r in b.frames[0]) <= 256, b.name)
+        names = [b.name for b in asciiart.parse_sprite_text(self.read("tools", "classic_pimp", "hud.txt"))]
+        self.assertEqual(names, ["hud_portrait", "hud_bar_frame", "hud_bar_fill", "hud_butterfly_frame", "hud_corner_tl", "hud_corner_tr", "hud_corner_bl", "hud_corner_br"])

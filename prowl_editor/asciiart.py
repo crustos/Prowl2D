@@ -27,12 +27,17 @@ drawn by the sprite that has its name. A header names the level and says which e
     ⬛⬛🪙⬛⬛
     🧱🧱🧱🧱🧱
 
-Any character can be a tile, so a level drawn with ASCII ('#', '.', 'o') imports as well, one tile per distinct character.
+Any character can be a tile, so a level drawn with ASCII ('#', '.', 'o') imports as well, one tile per distinct character. Besides `solid`, `dynamic` and `diggable`
+a legend line can say `face` (or `face=NAME`): the emoji is a face, rendered with Grease Pencil on the ASCII art body that `->` names (emoji_faces.py, run by prowl.py).
+A brick, tree, rock or road (◼️) tile with no sprite gets generated ones, several looks picked at random cell by cell, and the street (◼️ cells, stacked) drawn with a kerb, a gutter and a line for each cell's place in it (generated.py). A line that starts with '#' and is not a header or a legend line is a row of the level, so a comment in
+a level has to be a legend line.
 """
 import re
 import unicodedata
+import zlib
 
-from .model import DEFAULT_COLORS, DEFAULT_EMPTY, TRANSPARENT_KEY, Level, ProjectError, Sprite, TileDef, color_hex, parse_color
+from . import generated
+from .model import DEFAULT_COLORS, DEFAULT_EMPTY, TRANSPARENT_KEY, Level, ProjectError, Sprite, TileDef, color_hex, parse_color, slug
 
 ZWJ = 0x200D
 VS16 = 0xFE0F
@@ -65,12 +70,18 @@ def split_graphemes(text):
     return out
 
 
+# what a level means by an emoji, where Unicode's name is not it: ◼️ is a road
+_NAMES = {"\u25fc": "road"}
+
+
 def natural_name(g):
     """The name a person would give an emoji: 'brick', 'deciduous tree', 'flag us'. For anything Unicode names, that name in lower case."""
     cps = [c for c in g if ord(c) not in (VS16, 0xFE0E, ZWJ) and not (0x1F3FB <= ord(c) <= 0x1F3FF)]
     if len(cps) == 2 and all(0x1F1E6 <= ord(c) <= 0x1F1FF for c in cps):
         return "flag " + "".join(chr(ord(c) - 0x1F1E6 + ord("a")) for c in cps)
     keycap = KEYCAP in [ord(c) for c in cps]
+    if len(cps) == 1 and cps[0] in _NAMES:
+        return _NAMES[cps[0]]
     names = []
     for c in cps:
         if ord(c) == KEYCAP:
@@ -220,6 +231,10 @@ def import_sprites(text, project, mapping=None):
         elif existing is not None and pal.entries[existing].rgb == tuple(rgb):
             key_for[ch] = existing
             return existing
+        same = next((i for i, e in enumerate(pal.entries) if e.rgb is not None and e.rgb == tuple(rgb)), None) if existing is not None else None
+        if same is not None:                     # the letter means another colour here, but the palette has this colour already (under another key): use it
+            key_for[ch] = same
+            return same
         try:
             pal.check_key(ch)
             key = ch
@@ -273,6 +288,7 @@ _EMPTY_HEADER = re.compile(r"^#\s+empty\s*:\s*(.*)$", re.IGNORECASE)
 _LEGEND = re.compile(r"^#\s+(\S+)\s*=\s*(.*?)\s*$")
 _EMPTY_CANDIDATES = [DEFAULT_EMPTY, "⬜", ".", " ", "・", "　", "·", "_", "-"]
 _BLANKS = (" ", "\u3000")        # a space is never a tile: wherever it appears in a level it means "nothing here"
+_TRAIT = r"(?:solid|dynamic|diggable|face(?:=[\w-]+)?)"     # `face` (or `face=clip`): the emoji is a face, rendered by emoji_faces.py; the `->` sprite is its body
 
 
 class LevelBlock:
@@ -310,7 +326,7 @@ def parse_level_text(text, default_name="level"):
             if sm:
                 sprite, name = sm.group(1).strip(), name[:sm.start()]
             traits = ()
-            tm = re.search(r"\s*\(((?:solid|dynamic|diggable)(?:\s*,\s*(?:solid|dynamic|diggable))*)\)\s*$", name)
+            tm = re.search(r"\s*\((%s(?:\s*,\s*%s)*)\)\s*$" % (_TRAIT, _TRAIT), name)
             if tm:
                 traits = tuple(t.strip() for t in tm.group(1).split(","))
                 name = name[:tm.start()]
@@ -329,9 +345,56 @@ def parse_level_text(text, default_name="level"):
     return blocks
 
 
+def make_missing_sprites(project, tiles):
+    """A tile with no sprite whose name (or whose `-> sprite`) is one that generated.py can make (🧱 brick, 🌳 tree) gets a family of sprites, imported like any other
+    ASCII art, and its `variants` say how often each is used (each cell of a level picks one); a tile that has a sprite already is left alone. Returns the sprites made."""
+    made = []
+    for t in tiles:
+        if t.face or project.sprite_for_tile(t) is not None:       # (a face gets its sprite from emoji_faces.py)
+            continue
+        key = slug(t.sprite or t.name)
+        fam = generated.family(key, t.sprite or None)
+        if not fam:
+            continue
+        sprites = [import_sprites(text, project)[0][0] for _, _, text in fam]
+        made += sprites
+        t.variants = [] if key in generated.CONNECTS else [[s.name, w] for s, (_, w, _) in zip(sprites, fam)]
+        if t.sprite:
+            t.sprite = sprites[0].name
+        if key in generated.CONNECTS:
+            t.connects = generated.connects_for(key, sprites[0].name)        # the first sprite: the others are named after it
+        if key in generated.PATCHES:
+            t.patches = sprites[0].name + generated.PATCHES[key]
+    return made
+
+
+def link_groups(project):
+    """Tiles that stand in a road or on a pavement count as it to the tile (TileDef.joins), so that a car parked in the street does not give the street a kerb in front of it,
+    nor a hydrant the pavement the shadow of a wall."""
+    kind = lambda t: generated.split_connects(t.connects)[0] if t.connects else slug(t.sprite or t.name)
+    kinds = {e: kind(t) for e, t in project.tiles.items()}
+    for e, t in project.tiles.items():
+        if t.connects and kinds[e] in generated.GROUPS:
+            t.joins = [j for j, k in kinds.items() if k in generated.GROUPS[kinds[e]] and j != e]
+
+
+def make_patch_sprites(project, levels):
+    """The sprites for the cells of `levels` that the city has painted over (generated.patch_code), for each tile that has `patches`: one for each distinct way a cell
+    is painted. There are too many to make beforehand, so a level gets those it uses. Returns the sprites made."""
+    made = []
+    for t in project.tiles.values():
+        if not t.patches or not t.variants:
+            continue
+        salt = zlib.crc32(t.emoji.encode("utf-8"))
+        codes = {generated.patch_code(x, y, salt) for lv in levels for y in range(lv.height) for x in range(lv.width) if lv.get(x, y) == t.emoji}
+        for code in sorted(c for c in codes if c != "0000" and project.sprite(t.patches + c) is None):
+            made += import_sprites(generated.patch_text(code, t.patches + code), project)[0]
+    return made
+
+
 def import_levels(text, project, default_name="level"):
     """Adds the levels in `text` to the project; every distinct character that is not already a tile becomes one, named as the legend says or by its Unicode
-    name. Returns (levels, new_tiles)."""
+    name. A new tile that has no sprite but is a brick wall gets a generated one (generated.py). Returns (levels, new_tiles)."""
     made, new_tiles = [], []
     for b in parse_level_text(text, default_name):
         used = {g for row in b.rows for g in row}
@@ -350,12 +413,17 @@ def import_levels(text, project, default_name="level"):
                     continue
                 if g not in project.tiles:
                     name, sprite, traits = b.legend.get(g, (natural_name(g), "", ()))
-                    project.tiles[g] = TileDef(g, name, sprite, "solid" in traits, "dynamic" in traits, "diggable" in traits)
+                    face = [t for t in traits if t == "face" or t.startswith("face=")]
+                    project.tiles[g] = TileDef(g, name, "" if face else sprite, "solid" in traits, "dynamic" in traits, "diggable" in traits,
+                                               bool(face), face[0].partition("=")[2] if face else "", sprite if face else "")     # a face's `->` is its body
                     new_tiles.append(project.tiles[g])
                 lv.cells[y * width + x] = g
         if empty and empty not in (project.empty,) and not project.levels:
             project.empty = empty                      # the first level decides what empty looks like, unless the project already says
         made.append(project.add_level(lv))
+    make_missing_sprites(project, new_tiles)
+    link_groups(project)
+    make_patch_sprites(project, made)
     return made, new_tiles
 
 
@@ -369,7 +437,10 @@ def export_level(level, project):
             lines.append("# %s = %s" % (g, natural_name(g)))
             continue
         traits = [w for w, on in (("solid", t.solid), ("dynamic", t.dynamic), ("diggable", t.diggable)) if on]
-        extra = (" (%s)" % ", ".join(traits) if traits else "") + (" -> %s" % t.sprite if t.sprite else "")
+        if t.face:
+            traits.append("face=" + t.clip if t.clip else "face")
+        linked = t.body if t.face else t.sprite                  # a face's sprite is made from its body (emoji_faces.py), so the body is what the text says
+        extra = (" (%s)" % ", ".join(traits) if traits else "") + (" -> %s" % linked if linked else "")
         lines.append("# %s = %s%s" % (g, t.name, extra))
     for y in range(level.height):
         lines.append("".join(level.get(x, y) or empty for x in range(level.width)))
@@ -403,5 +474,8 @@ def level_from_text(level, text, project):
                 new_tiles.append(project.tiles[g])
             cells[y * width + x] = g
     level.width, level.height, level.cells = width, len(rows), cells
+    make_missing_sprites(project, new_tiles)
+    link_groups(project)
+    make_patch_sprites(project, [level])
     return new_tiles
 
