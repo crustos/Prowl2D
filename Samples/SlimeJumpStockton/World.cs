@@ -1,0 +1,115 @@
+// The world of SlimeJumpStockton: builds the scene (the street, the crates and boulders, the goal, the slime and its bot) and steps it. Game.cs runs it headless and prints;
+// a page front end (tools/sand_web) draws it.
+using System;
+using Prowl.Core2D;
+using Prowl.Native.Box2D;
+using Prowl.Runtime.Destruction2D;
+
+static class World
+{
+    public static Scene2D scene;
+    public static Node player;
+
+    static Collider2D MakeCollider(Scene2D scene, Node n, float w, float h, bool trigger, float offY)
+    {
+        Collider2D c = scene.NewBoxCollider(n, w, h);
+        c.Friction = 0f;
+        c.IsTrigger = trigger;
+        c.OffsetY = offY;
+        scene.Finish(c.Self);
+        return c;
+    }
+
+    static Node MakeBox(Scene2D scene, float x, float y, float w, float h, int layer, int tag, bool trigger, float offY)
+    {
+        Node n = scene.NewNode(null);
+        n.SetPosition(x, y);
+        n.Layer = layer;
+        n.Tag = tag;
+        MakeCollider(scene, n, w, h, trigger, offY);
+        return n;
+    }
+
+    // the scene: the shaft, the things in it, the goal and the bot-driven slime
+    public static void Build()
+    {
+        Scripts.Init();
+        scene = new Scene2D();
+        scene.FixedDeltaTime = Cfg.Dt;
+        scene.SetGravity(0f, Cfg.Gravity);
+        uint[] layerRows = Level.LayerRows();
+        scene.Physics.Sim.SetLayerMatrix(layerRows);
+        Shared.InitSaves(0);
+        Shared.InitGems(0);
+        Shared.InitCrumbly(0);
+        Shared.InitEnemies(Level.EnemyCount);
+
+        Destruct.Init(scene, 16);
+        float st = Level.StreetY;
+        // the lot at the left: a stack of crates, and a boulder to clear
+        Destruct.AddCrate(scene, 6.5f, st + 0.5f);
+        Destruct.AddCrate(scene, 7.8f, st + 0.5f);
+        Destruct.AddCrate(scene, 7.15f, st + 1.5f);
+        Destruct.AddBoulder(scene, 10f, st + 0.7f);
+        // beyond the drain, before the channel
+        Destruct.AddCrate(scene, 35f, st + 0.5f);
+        // on the far bank of the channel
+        Destruct.AddCrate(scene, 84f, st + 0.5f);
+        Destruct.AddCrate(scene, 85.3f, st + 0.5f);
+        Destruct.AddBoulder(scene, 87.5f, st + 0.7f);
+
+        // the faces (tools/slime_faces): they float about their post and come for the slime when they see it
+        for (int i = 0; i < Level.EnemyCount; i++)
+        {
+            int kind = Level.EnemyKind(i);
+            float ex = Level.EnemyX(i);
+            float ey = Level.EnemyY(i);
+            Node en = scene.NewNode(null);
+            en.SetPosition(ex, ey);
+            en.Layer = Layers.Enemy;
+            en.Tag = Shared.TagEnemyBase + i;
+            Rigidbody2D erb = scene.NewRigidbody(en, PB2.BodyDynamic);
+            erb.GravityScale = EnemyCfg.GravityScale(kind);
+            erb.LinearDamping = 0f;
+            erb.FreezeRotation = true;
+            erb.CanSleep = false;
+            scene.Finish(erb.Self);
+            MakeCollider(scene, en, EnemyCfg.ColliderW(kind), EnemyCfg.ColliderH(kind), false, 0f);
+            EnemyScript es = Scripts.AddEnemyScript(en);
+            es.Index = i;
+            es.Kind = kind;
+            es.InitX = ex;
+            es.InitY = ey;
+            Shared.RegisterEnemy(i, en, kind, ex, ey);
+        }
+
+        Node goal = MakeBox(scene, Level.GoalX(), Level.GoalY(), 1.4f, 2f, Layers.Gem, Shared.TagGoal, true, 0f);
+        Scripts.AddGoalScript(goal);
+
+        // the player: a dynamic box; gravity is applied by PlayerScript
+        player = scene.NewNode(null);
+        player.SetPosition(Level.SpawnX(), Level.SpawnY());
+        player.Layer = Layers.Player;
+        player.Tag = Shared.TagPlayer;
+        Rigidbody2D rb = scene.NewRigidbody(player, PB2.BodyDynamic);
+        rb.GravityScale = 0f;
+        rb.LinearDamping = Cfg.LinearDamping;
+        rb.FreezeRotation = true;
+        rb.IsBullet = true;
+        rb.CanSleep = false;
+        scene.Finish(rb.Self);
+        Collider2D playerCol = MakeCollider(scene, player, Cfg.ColliderW, Cfg.ColliderH, false, 0f);
+        Shared.PlayerColliderIndex = playerCol.ColliderIndex;
+        Scripts.AddPlayerScript(player);
+        Scripts.AddLassoScript(player);
+        Scripts.AddBotScript(player);
+
+    }
+
+    // one fixed step: the sand and water, the terrain's rebuilds and the fuses, before the physics step, then the scripts
+    public static void Tick()
+    {
+        Destruct.Step(scene);
+        Scripts.Tick(scene, Cfg.Dt);
+    }
+}
