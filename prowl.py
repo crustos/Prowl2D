@@ -231,6 +231,8 @@ def cmd_open(a, api):
         for script in a.blend_script:
             report = blender_import.import_blend_script(project, script, blender_import.Options.from_args(a), blender_import._say)
             report_import(script, report, imported)
+    from prowl_editor import emoji_faces
+    imported[0].extend(emoji_faces.make_face_sprites(project, emoji_faces.Options.from_args(a), blender_import_say))        # the heads of `face` tiles, on their bodies
     api.run_project_hooks(project, a)
     if output:
         project.save(output)
@@ -240,6 +242,10 @@ def cmd_open(a, api):
     if not want_gui:
         return 0
     return cmd_gui(project, a.viewport, a.quit_after, a.demo, imported, api, a)
+
+
+def blender_import_say(line):
+    print("  faces: " + line, flush=True)
 
 
 def report_import(path, report, imported):
@@ -279,13 +285,14 @@ def build_parser(api):
 
 
 def main():
-    from prowl_editor import blender_import, plugins
+    from prowl_editor import blender_import, emoji_faces, plugins
     from prowl_editor.model import ProjectError
     try:
         pre = argparse.ArgumentParser(add_help=False, allow_abbrev=False)          # the plugins are loaded first: they add options the real parse needs
         pre.add_argument("--plugin", action="append", default=[])
         api = plugins.Prowl(ROOT)
         blender_import.register(api)
+        emoji_faces.register(api)
         plugins.load_plugins(pre.parse_known_args()[0].plugin, api)
         a = build_parser(api).parse_intermixed_args()          # files and options in any order
         if a.selftest:
