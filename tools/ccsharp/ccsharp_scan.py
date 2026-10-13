@@ -96,6 +96,8 @@ def CORE2D_FILES(game=None):
         if feature and used is not None and feature.group(1) not in used:
             continue
         files.append(os.path.normpath(os.path.join(os.path.dirname(proj), m.group(1).replace("\\", os.sep))))
+    if game and any(re.search(r"\bInput2D\b", open(g, encoding="utf-8-sig").read()) for g in game):
+        files.append(os.path.join(PROWL, "Native", "Engine2D", "Input2D.cs"))         # the keyboard, for games that read it (the editor's scripts have it too)
     return files
 
 
