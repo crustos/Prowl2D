@@ -1,0 +1,1163 @@
+{
+  "collision_cell_builder": {
+    "file": "collision_cell_builder.spv",
+    "entry_points": [
+      {
+        "name": "count_objects_for_each_chunk",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "chunk_obj_count",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 3,
+            "name": "uniform_data",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 4,
+            "name": "cell_ids",
+            "access": "read"
+          }
+        ],
+        "push": [],
+        "push_size": 0
+      },
+      {
+        "name": "build_collision_cells_array",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "chunk_obj_count",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "collision_cells",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "indirect_args",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 3,
+            "name": "uniform_data",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 4,
+            "name": "cell_ids",
+            "access": "read"
+          }
+        ],
+        "push": [],
+        "push_size": 0
+      }
+    ]
+  },
+  "collision_solver": {
+    "file": "collision_solver.spv",
+    "entry_points": [
+      {
+        "name": "solve_collisions",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "chunk_obj_count",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "collision_cells",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "cell_ids",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 3,
+            "name": "object_ids",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 4,
+            "name": "positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 5,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 6,
+            "name": "uniform_data",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "current_cell_color",
+            "offset": 0,
+            "type": "u32"
+          }
+        ],
+        "push_size": 4,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ]
+  },
+  "grid": {
+    "file": "grid.spv",
+    "entry_points": [
+      {
+        "name": "build_cell_ids_array",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "cell_ids",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 3,
+            "name": "object_ids",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 4,
+            "name": "radius",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "cell_size",
+            "offset": 0,
+            "type": "f32"
+          },
+          {
+            "name": "num_particles",
+            "offset": 4,
+            "type": "u32"
+          }
+        ],
+        "push_size": 8,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ]
+  },
+  "home_cell_ids": {
+    "file": "home_cell_ids.spv",
+    "entry_points": [
+      {
+        "name": "create_home_cell_ids",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "home_cell_ids",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "particle_ids",
+            "access": "read_write"
+          }
+        ],
+        "push": [
+          {
+            "name": "num_particles",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "cell_size",
+            "offset": 4,
+            "type": "f32"
+          }
+        ],
+        "push_size": 8,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ]
+  },
+  "particle_integration": {
+    "file": "particle_integration.spv",
+    "entry_points": [
+      {
+        "name": "verlet_integration",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "previous_positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "delta_time",
+            "offset": 0,
+            "type": "f32"
+          },
+          {
+            "name": "world_width",
+            "offset": 4,
+            "type": "f32"
+          },
+          {
+            "name": "world_height",
+            "offset": 8,
+            "type": "f32"
+          },
+          {
+            "name": "is_mouse_pressed",
+            "offset": 12,
+            "type": "u32"
+          },
+          {
+            "name": "mouse_x",
+            "offset": 16,
+            "type": "f32"
+          },
+          {
+            "name": "mouse_y",
+            "offset": 20,
+            "type": "f32"
+          },
+          {
+            "name": "num_particles",
+            "offset": 24,
+            "type": "u32"
+          }
+        ],
+        "push_size": 28,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ]
+  },
+  "prefix_sum": {
+    "file": "prefix_sum.spv",
+    "entry_points": [
+      {
+        "name": "prefix_sum_of_each_block",
+        "local_size": [
+          256,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "data",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "block_sums",
+            "access": "read_write"
+          }
+        ],
+        "push": [
+          {
+            "name": "total_elems",
+            "offset": 0,
+            "type": "u32"
+          }
+        ],
+        "push_size": 4,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "prefix_sum_of_the_block_sums",
+        "local_size": [
+          256,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "block_sums",
+            "access": "read_write"
+          }
+        ],
+        "push": [],
+        "push_size": 0
+      },
+      {
+        "name": "add_block_prefix_sums_to_the_buffer",
+        "local_size": [
+          256,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "data",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "block_sums",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "total_elems",
+            "offset": 0,
+            "type": "u32"
+          }
+        ],
+        "push_size": 4,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ]
+  },
+  "prowl_bodies": {
+    "file": "prowl_bodies.spv",
+    "entry_points": [
+      {
+        "name": "solve_joints",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 6,
+            "name": "joint_i",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 7,
+            "name": "joint_f",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "first",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "count",
+            "offset": 4,
+            "type": "u32"
+          }
+        ],
+        "push_size": 8,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "solve_collisions_grouped",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "chunk_obj_count",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "collision_cells",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "cell_ids",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 3,
+            "name": "object_ids",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 4,
+            "name": "positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 5,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 6,
+            "name": "uniform_data",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 7,
+            "name": "groups",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "current_cell_color",
+            "offset": 0,
+            "type": "u32"
+          }
+        ],
+        "push_size": 4,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "integrate_tagged",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "previous_positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 3,
+            "name": "tags",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "delta_time",
+            "offset": 0,
+            "type": "f32"
+          },
+          {
+            "name": "gravity_x",
+            "offset": 4,
+            "type": "f32"
+          },
+          {
+            "name": "gravity_y",
+            "offset": 8,
+            "type": "f32"
+          },
+          {
+            "name": "damping",
+            "offset": 12,
+            "type": "f32"
+          },
+          {
+            "name": "sand_damping",
+            "offset": 16,
+            "type": "f32"
+          },
+          {
+            "name": "world_width",
+            "offset": 20,
+            "type": "f32"
+          },
+          {
+            "name": "world_height",
+            "offset": 24,
+            "type": "f32"
+          },
+          {
+            "name": "num_particles",
+            "offset": 28,
+            "type": "u32"
+          }
+        ],
+        "push_size": 32,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "tile_friction",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "previous_positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 5,
+            "name": "tiles",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "tiles_w",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "tiles_h",
+            "offset": 4,
+            "type": "u32"
+          },
+          {
+            "name": "num_particles",
+            "offset": 8,
+            "type": "u32"
+          },
+          {
+            "name": "mu",
+            "offset": 12,
+            "type": "f32"
+          },
+          {
+            "name": "absorb",
+            "offset": 16,
+            "type": "f32"
+          }
+        ],
+        "push_size": 20,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "raycast",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 3,
+            "name": "groups",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 5,
+            "name": "tiles",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 8,
+            "name": "rays",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 9,
+            "name": "hits",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 10,
+            "name": "hit_ids",
+            "access": "read_write"
+          }
+        ],
+        "push": [
+          {
+            "name": "tiles_w",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "tiles_h",
+            "offset": 4,
+            "type": "u32"
+          },
+          {
+            "name": "num_circles",
+            "offset": 8,
+            "type": "u32"
+          },
+          {
+            "name": "num_rays",
+            "offset": 12,
+            "type": "u32"
+          },
+          {
+            "name": "mask",
+            "offset": 16,
+            "type": "u32"
+          },
+          {
+            "name": "ignore_group",
+            "offset": 20,
+            "type": "u32"
+          }
+        ],
+        "push_size": 24,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "sensor_count",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 4,
+            "name": "tags",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 11,
+            "name": "sensors",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 12,
+            "name": "sensor_mask",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 13,
+            "name": "sensor_counts",
+            "access": "read_write"
+          }
+        ],
+        "push": [
+          {
+            "name": "num_circles",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "num_sensors",
+            "offset": 4,
+            "type": "u32"
+          }
+        ],
+        "push_size": 8,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ]
+  },
+  "prowl_world": {
+    "file": "prowl_world.spv",
+    "entry_points": [
+      {
+        "name": "integrate_world",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "previous_positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "delta_time",
+            "offset": 0,
+            "type": "f32"
+          },
+          {
+            "name": "gravity_x",
+            "offset": 4,
+            "type": "f32"
+          },
+          {
+            "name": "gravity_y",
+            "offset": 8,
+            "type": "f32"
+          },
+          {
+            "name": "damping",
+            "offset": 12,
+            "type": "f32"
+          },
+          {
+            "name": "world_width",
+            "offset": 16,
+            "type": "f32"
+          },
+          {
+            "name": "world_height",
+            "offset": 20,
+            "type": "f32"
+          },
+          {
+            "name": "num_particles",
+            "offset": 24,
+            "type": "u32"
+          }
+        ],
+        "push_size": 28,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "tile_collide",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 5,
+            "name": "tiles",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "tiles_w",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "tiles_h",
+            "offset": 4,
+            "type": "u32"
+          },
+          {
+            "name": "num_particles",
+            "offset": 8,
+            "type": "u32"
+          }
+        ],
+        "push_size": 12,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ]
+  },
+  "radix_sort": {
+    "file": "radix_sort.spv",
+    "entry_points": [
+      {
+        "name": "build_histogram",
+        "local_size": [
+          256,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "keys_a",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "histogram",
+            "access": "read_write"
+          }
+        ],
+        "push": [
+          {
+            "name": "num_elements",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "current_shift",
+            "offset": 4,
+            "type": "u32"
+          },
+          {
+            "name": "num_workgroups",
+            "offset": 8,
+            "type": "u32"
+          },
+          {
+            "name": "num_blocks_per_workgroup",
+            "offset": 12,
+            "type": "u32"
+          }
+        ],
+        "push_size": 16,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "scatter_keys",
+        "local_size": [
+          256,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "keys_a",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "histogram",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "payload_a",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 3,
+            "name": "keys_b",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 4,
+            "name": "payload_b",
+            "access": "read_write"
+          }
+        ],
+        "push": [
+          {
+            "name": "num_elements",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "current_shift",
+            "offset": 4,
+            "type": "u32"
+          },
+          {
+            "name": "num_workgroups",
+            "offset": 8,
+            "type": "u32"
+          },
+          {
+            "name": "num_blocks_per_workgroup",
+            "offset": 12,
+            "type": "u32"
+          }
+        ],
+        "push_size": 16,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ]
+  },
+  "rearrange": {
+    "file": "rearrange.spv",
+    "entry_points": [
+      {
+        "name": "rearrange",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions_read",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "radius_read",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "previous_positions_read",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 3,
+            "name": "particle_ids",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 4,
+            "name": "positions_write",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 5,
+            "name": "radius_write",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 6,
+            "name": "previous_positions_write",
+            "access": "read_write"
+          }
+        ],
+        "push": [
+          {
+            "name": "num_particles",
+            "offset": 0,
+            "type": "u32"
+          }
+        ],
+        "push_size": 4,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ]
+  },
+  "_meta": {
+    "push_mode": "buffer"
+  }
+}
