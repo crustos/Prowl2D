@@ -1223,6 +1223,9 @@ class ViewportController(QtCore.QObject):
         studio.changed.connect(self._changed)
         self.driver_factory = None       # a callable making the object that plays the level in the viewport (slime_demo.SlimeDriver)
         self.autoplay = False            # start in play mode as soon as the window is open
+        self.gpu_backend = None          # None: Box2D balls; "auto" / "wgpu" / "interp": the GPU physics engine (prowl_editor/gpu_physics)
+        self.gpu_scripts = []            # [GpuKernel] C# files run on the GPU each step
+        self.gpu_kernel_dir = None
         self.window_pos = None           # (x, y) where the SDL window opens, or None to let the system place it
         self.engine_path = None          # the library in use (None: the one find_library finds); the code editor's Build makes a new one
 
@@ -1242,6 +1245,8 @@ class ViewportController(QtCore.QObject):
             self.vp.open()
             if self.driver_factory is not None:
                 self.vp.driver = self.driver_factory()
+            else:
+                self.apply_gpu()
             if self.autoplay and not self.vp.playing:
                 self.vp.toggle_play()
         except EngineError as e:
@@ -1250,6 +1255,28 @@ class ViewportController(QtCore.QObject):
         self.timer.start(16)
         self.studio.message.emit("viewport: P play/edit, click drops a ball (S: sand, left button paints), wheel zooms, right-drag pans, Home refits, Esc closes")
         return True
+
+    def apply_gpu(self):
+        """Installs (or removes) the GPU physics driver on the viewport; a level being played restarts so the change shows."""
+        if self.vp is None or self.driver_factory is not None:
+            return
+        if self.gpu_backend:
+            from prowl_editor.gpu_physics.driver import GpuPhysicsDriver
+            self.vp.driver = GpuPhysicsDriver(self.gpu_backend, list(self.gpu_scripts), kernel_dir=self.gpu_kernel_dir)
+        else:
+            self.vp.driver = None
+        if self.vp.is_open and self.vp.playing:
+            self.vp.toggle_play()
+            self.vp.toggle_play()
+
+    def set_gpu(self, backend):
+        self.gpu_backend = backend or None
+        self.apply_gpu()
+
+    def add_gpu_script(self, path):
+        if path not in self.gpu_scripts:
+            self.gpu_scripts.append(path)
+        self.apply_gpu()
 
     def close(self):
         self.timer.stop()
@@ -1338,6 +1365,21 @@ class ProjectWindow(QtWidgets.QMainWindow):
         self._busy = False
         self.refresh("all")
 
+    def toggle_gpu_physics(self):
+        on = self.gpu_action.isChecked()
+        self.viewport.set_gpu("auto" if on else None)
+        self.statusBar().showMessage("GPU physics %s (balls dropped in play mode%s)" % (
+            "on" if on else "off", " run on the GPU; Box2D keeps crates, shards and scripts" if on else " use Box2D"))
+
+    def add_gpu_script(self):
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "GPU script", "", "C# GpuKernel (*.cs)")
+        if path:
+            if not self.viewport.gpu_backend:
+                self.gpu_action.setChecked(True)
+                self.viewport.gpu_backend = "auto"
+            self.viewport.add_gpu_script(path)
+            self.statusBar().showMessage("GPU script added: " + path)
+
     # ---- menus
     def _action(self, menu, text, fn, shortcut=None):
         a = menu.addAction(text)
@@ -1370,6 +1412,11 @@ class ProjectWindow(QtWidgets.QMainWindow):
         e = mb.addMenu("&Edit")
         self._action(e, "&Undo", self.studio.do_undo, "Ctrl+Z")
         self._action(e, "&Redo", self.studio.do_redo, "Ctrl+Y")
+        ph = mb.addMenu("&Physics")
+        self.gpu_action = self._action(ph, "&GPU physics (wgpu, Crust SPIR-V kernels)", self.toggle_gpu_physics)
+        self.gpu_action.setCheckable(True)
+        self.gpu_action.setChecked(bool(self.viewport.gpu_backend))
+        self._action(ph, "Add &GPU script (C# [GpuKernel])...", self.add_gpu_script)
         w = mb.addMenu("&Window")
         self._action(w, "Palette", lambda: self.show_window("palette"))
         self._action(w, "Sprite Editor", lambda: self.show_window("sprites"))

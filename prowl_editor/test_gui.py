@@ -926,3 +926,17 @@ class BuildAndReload(Base):
             self.assertEqual(errors, [("Bad", where, "error")], lang)
             self.assertEqual(win.editor.error_lines.keys(), {where}, lang)           # a red line in the file that is open
             self.studio.delete_script("Bad")
+
+
+class GpuPhysicsMenu(Base):
+    def test_the_physics_menu_toggles_the_gpu_driver(self):
+        vc = self.main.viewport
+        self.assertIsNone(vc.gpu_backend)
+        self.assertFalse(self.main.gpu_action.isChecked())
+        self.main.gpu_action.trigger()                    # the checkable action flips itself, then runs the toggle
+        self.assertEqual(vc.gpu_backend, "auto")
+        self.main.gpu_action.trigger()
+        self.assertIsNone(vc.gpu_backend)
+        vc.add_gpu_script("magnet.cs")
+        vc.add_gpu_script("magnet.cs")                    # once
+        self.assertEqual(vc.gpu_scripts, ["magnet.cs"])

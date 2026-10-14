@@ -435,6 +435,8 @@ class Viewport:
         if not self.playing or lv is None:
             return 0, 0
         pushed = e.p2d_blast(wx, wy, radius, force)
+        if self.driver is not None and hasattr(self.driver, "blast"):
+            pushed += self.driver.blast(self, wx, wy, radius, force)    # what the GPU physics holds
         dig = radius if dig is None else dig
         diggable = {k for k, t in self.project.tiles.items() if t.diggable}
         dug = 0
@@ -451,6 +453,8 @@ class Viewport:
 
     def shatter(self, actor, pieces=7, speed=4.0):
         """Breaks a movable tile into small bodies that fly outward and expire after 2.5 seconds (the sample does it with Shatter2D's Voronoi fragments)."""
+        if self.driver is not None and hasattr(self.driver, "shatter") and actor.get("gpu") and self.driver.shatter(self, actor, pieces, speed):
+            return                                                       # the GPU physics broke it
         e = self.engine.lib
         x, y = e.p2d_node_x(actor["node"]), e.p2d_node_y(actor["node"])
         e.p2d_destroy_node(actor["node"])
@@ -480,6 +484,8 @@ class Viewport:
             self._start_play()
 
     def drop_ball(self, wx, wy):
+        if self.driver is not None and hasattr(self.driver, "drop_ball") and self.driver.drop_ball(self, wx, wy):
+            return                                           # the GPU physics driver took it
         e = self.engine.lib
         if len(self.balls) >= 100:
             e.p2d_destroy_node(self.balls.pop(0))
@@ -787,6 +793,8 @@ class Viewport:
                     continue
                 flat.extend((lib.p2d_node_x(node), lib.p2d_node_y(node), lib.p2d_sprite_info(node, 1) / 2.0, lib.p2d_sprite_info(node, 2) / 2.0, lib.p2d_node_angle(node),
                              lib.p2d_sprite_info(node, 3), lib.p2d_sprite_info(node, 4), lib.p2d_sprite_info(node, 5), lib.p2d_sprite_info(node, 6), int(shape), 4, 0))
+        if self.playing and self.driver is not None and hasattr(self.driver, "draw"):
+            self.driver.draw(flat)                               # sand and ropes of the GPU physics: too many for engine nodes
         for node in self.balls:
             flat.extend((self.engine.lib.p2d_node_x(node), self.engine.lib.p2d_node_y(node), 0.35, 0.35, 0.0, 1.0, 0.55, 0.2, 1.0, 1, 5, 0))
         n = len(flat) // 12
