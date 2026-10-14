@@ -87,6 +87,22 @@ collision and trigger messages, the end of the frame*; a frame is *Start, Update
 - Scripts and physics components are **pooled** (`[MaxInstances(N)]` is the most that exist at once; `Scripts.AddX` returns null at the cap, as
   unity_pack's `Instantiate` does). Memory is fixed: `python3 build.py arenas` prints it.
 
+## Unity-style API
+
+The runtime also answers to Unity's names, next to its own (nothing existing was renamed; `Samples/Unity2D` shows it). It is optional and additive.
+
+- **Value types** (`Vector2`, `Vector3`, `Quaternion`, `Color`, `ForceMode2D`, `RigidbodyType2D`, `Space`) are in namespace `UnityEngine` and always compile.
+  **`Mathf`, `Time`, `Debug`, `Physics2D`** are translated only for a game that says `using UnityEngine;`.
+- **A `Node` is the GameObject and the Transform**: `transform` and `gameObject` return the node. `position`, `localPosition`, `eulerAngles`, `rotation`, `localScale`,
+  `right/up/forward`, `Translate`, `Rotate`, `TransformPoint`, `parent`, `GetChild`, `SetActive`, `layer`, `Destroy()` are on it (angles in degrees).
+  A `[Script]` class may declare `public Node transform;` / `public Node gameObject;`, which the generator sets. `OnCollisionEnter2D` / `OnCollisionExit2D` are accepted for the Begin/End callbacks.
+- **Rigidbody2D / Collider2D / Collision2D / SpriteRenderer2D** have Unity's properties (`velocity`, `gravityScale`, `bodyType`, `AddForce`, `isTrigger`, `GetContact`, `color`, ...).
+- **Operators** (`a + b` on vectors) work on .NET only by default. To use them in C too, uncomment `// #define UNITY_NATIVE_OPERATORS` at the top of each value-type file and run `python3 build.py scan` first.
+  Without it use `Vector2.Add(a, b)` etc., which work in both. Overloads with the same parameter count (`Mathf.Abs(int)`, `AddForce(v, ForceMode2D)`) are .NET only; the C build has `Mathf.AbsInt` etc.
+- **Differences / not provided**: `layer` is an int and there are no string names or tags; `Time.timeScale` applies through `Scripts.Tick`; changing a collider's settings needs `ApplyChanges()`;
+  `Rigidbody2D.mass` set is live only; `RigidbodyType2D` numbers are Unity's, mapped to the physics core's. No `Raycast`/`Overlap`, `Input`, `Instantiate`, `MonoBehaviour` base class, `OnCollisionStay2D`, `Awake`, `OnDestroy`;
+  `GetComponent<T>()` is .NET only (use `node.rigidbody2D` etc.). For `Transform` as a type: `using Transform = Prowl.Core2D.Node;`.
+
 ## Drawing
 
 A `SpriteRenderer2D` is a box or a disc of a size and a tint on a node. `scene.AddSprite(node, SpriteRenderer2D.Disc, w, h, r, g, b)` makes one; its tint and layer are read every frame, so a script can

@@ -57,6 +57,24 @@
     <Compile Include="..\Prowl.Runtime\Physics2D\Native\PB2.Generated.cs" CBuild="false" />
   </ItemGroup>
 
+  <!-- The Unity-style API (namespace UnityEngine): the value types and enums that the members the runtime classes have under Unity's names are typed with.
+       Always compiled (Node, Rigidbody2D, Collider2D, SpriteRenderer2D use them). See "Unity-style API" in README.md. -->
+  <ItemGroup Label="Unity-style API: value types">
+    <Compile Include="Unity\Enums.cs" />
+    <Compile Include="Unity\Vector2.cs" />
+    <Compile Include="Unity\Vector3.cs" />
+    <Compile Include="Unity\Quaternion.cs" />
+    <Compile Include="Unity\Color.cs" />
+  </ItemGroup>
+
+  <!-- The Unity-style API's static classes: translated only for a game that says `using UnityEngine;` (tools/ccsharp/ccsharp_scan.py FEATURES). -->
+  <ItemGroup Label="Unity-style API: Mathf, Time, Debug, Physics2D (a game that uses them)">
+    <Compile Include="Unity\Mathf.cs" Feature="unity" />
+    <Compile Include="Unity\Time.cs" Feature="unity" />
+    <Compile Include="Unity\Debug.cs" Feature="unity" />
+    <Compile Include="Unity\Physics2D.cs" Feature="unity" />
+  </ItemGroup>
+
   <ItemGroup Label="The runtime">
     <Compile Include="CoreLimits.cs" />
     <Compile Include="ScriptAttribute.cs" />

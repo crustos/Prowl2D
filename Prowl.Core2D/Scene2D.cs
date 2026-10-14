@@ -42,10 +42,14 @@ internal sealed class Scene2D
     public Collision2D Collision;            // the payload of the collision message being delivered: valid for that callback only
 
     public float DeltaTime;
+    public float UnscaledDeltaTime;          // the frame's time before TimeScale (Scripts.Tick sets it; BeginFrame sets it to DeltaTime)
+    public float TimeScale;                  // Scripts.Tick multiplies the time of a frame by it: 1 is real time, 0 stops the game (Unity's Time.timeScale)
     public float FixedDeltaTime;
     public float FixedAlpha;                 // how far into the next fixed step this frame is, 0..1
     public int FrameIndex;
     public int FixedIndex;
+    public float ElapsedTime;                // seconds of frames begun, this one included: Unity's Time.time
+    public float ElapsedFixedTime;           // seconds of fixed steps begun, this one included: Unity's Time.fixedTime
     public bool IsActive;                    // OnEnable / OnDisable are only delivered while the scene is active
     public int NodeCount;
     public int ComponentCount;
@@ -110,6 +114,7 @@ internal sealed class Scene2D
         _doomedNodes = new List<Node>();
         _doomedComps = new List<Component>();
         FixedDeltaTime = 1f / 60f;
+        TimeScale = 1f;
     }
 
     // ---- nodes ---------------------------------------------------------------------------
@@ -157,6 +162,9 @@ internal sealed class Scene2D
 
     public int NodeHighWater => _nodeHigh;
     public int ComponentHighWater => _compHigh;
+
+    /// <summary>True while the calls of a fixed step are being delivered (Unity's Time.inFixedTimeStep).</summary>
+    public bool InFixedStep => _mode == 1;
 
     /// <summary>The live component in a slot, or null.</summary>
     public Component ComponentAt(int index)
@@ -634,6 +642,7 @@ internal sealed class Scene2D
     {
         FixedDeltaTime = dt;
         FixedIndex++;
+        ElapsedFixedTime += dt;
         _mode = 1;
         _phase = 0;
         _cursor = 0;
@@ -644,8 +653,10 @@ internal sealed class Scene2D
     public void BeginFrame(float dt, float alpha)
     {
         DeltaTime = dt;
+        UnscaledDeltaTime = dt;
         FixedAlpha = alpha;
         FrameIndex++;
+        ElapsedTime += dt;
         _mode = 2;
         _phase = 0;
         _cursor = 0;

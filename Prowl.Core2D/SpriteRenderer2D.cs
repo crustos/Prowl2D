@@ -1,6 +1,8 @@
 // This file is part of the Prowl Game Engine
 // Licensed under the MIT License. See the LICENSE file in the project root for details.
 
+using UnityEngine;
+
 namespace Prowl.Core2D;
 
 /// <summary>
@@ -44,5 +46,49 @@ internal sealed class SpriteRenderer2D
         G = g;
         B = b;
         A = a;
+    }
+
+    // ---- Unity-named members -------------------------------------------------------------
+    // A sprite here is a coloured box or disc, so there is no sprite asset, flip or material: just the tint, the order and the size.
+
+    public Node gameObject { get { return Self.Node; } }
+    public Node transform { get { return Self.Node; } }
+
+    /// <summary>The tint. Read every frame, so it may be changed at any time.</summary>
+    public Color color
+    {
+        get { return new Color(R, G, B, A); }
+        set
+        {
+            R = value.r;
+            G = value.g;
+            B = value.b;
+            A = value.a;
+        }
+    }
+
+    /// <summary>Which sprites are drawn over which: a higher order over a lower (0..255).</summary>
+    public int sortingOrder
+    {
+        get { return Layer; }
+        set { Layer = value; }
+    }
+
+    /// <summary>Whether the sprite is drawn.</summary>
+    public bool enabled
+    {
+        get { return Visible; }
+        set { Visible = value; }
+    }
+
+    /// <summary>The full width and height, before the node's scale.</summary>
+    public Vector2 size
+    {
+        get { return new Vector2(Width, Height); }
+        set
+        {
+            Width = value.x;
+            Height = value.y;
+        }
     }
 }

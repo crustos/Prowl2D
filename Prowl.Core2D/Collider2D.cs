@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See the LICENSE file in the project root for details.
 
 using Prowl.Runtime.Physics2D;
+using UnityEngine;
 
 namespace Prowl.Core2D;
 
@@ -61,6 +62,90 @@ internal sealed class Collider2D
         OwnBody = 0;
         Attached = null;
     }
+
+    // ---- Unity-named members -------------------------------------------------------------
+    //
+    // The collider's settings are read when it is enabled and its shape made (see above); unlike Unity, changing one on a live collider does nothing
+    // until <see cref="ApplyChanges"/> makes the shape again (the one that Unity does for you).
+
+    public Node gameObject { get { return Self.Node; } }
+    public Node transform { get { return Self.Node; } }
+
+    public bool isTrigger
+    {
+        get { return IsTrigger; }
+        set { IsTrigger = value; }
+    }
+
+    /// <summary>The shape's centre, in the node's space.</summary>
+    public Vector2 offset
+    {
+        get { return new Vector2(OffsetX, OffsetY); }
+        set
+        {
+            OffsetX = value.x;
+            OffsetY = value.y;
+        }
+    }
+
+    /// <summary>A box's full width and height (the node's scale multiplies them).</summary>
+    public Vector2 size
+    {
+        get { return new Vector2(SizeX, SizeY); }
+        set
+        {
+            SizeX = value.x;
+            SizeY = value.y;
+        }
+    }
+
+    /// <summary>A circle's radius.</summary>
+    public float radius
+    {
+        get { return Radius; }
+        set { Radius = value; }
+    }
+
+    public float density
+    {
+        get { return Density; }
+        set { Density = value; }
+    }
+
+    /// <summary>Unity keeps this on the collider's shared material.</summary>
+    public float friction
+    {
+        get { return Friction; }
+        set { Friction = value; }
+    }
+
+    /// <summary>Unity keeps this on the collider's shared material.</summary>
+    public float bounciness
+    {
+        get { return Bounciness; }
+        set { Bounciness = value; }
+    }
+
+    /// <summary>The rigidbody the shape is on, or null for a static collider that has no body of its own to move.</summary>
+    public Rigidbody2D attachedRigidbody
+    {
+        get { return Attached; }
+    }
+
+    /// <summary>Whether the component is enabled. Setting it enables or disables it, which makes or destroys its shape.</summary>
+    public bool enabled
+    {
+        get { return Self.Enabled; }
+        set { Scene2D.Current.SetEnabled(Self, value); }
+    }
+
+    /// <summary>Makes the shape again from the settings as they are now, for a collider that is enabled. Overlaps in progress may be reported again.</summary>
+    public void ApplyChanges()
+    {
+        if (Self == null || !Self.Enabled) return;
+        Scene2D.Current.SetEnabled(Self, false);
+        Scene2D.Current.SetEnabled(Self, true);
+    }
 }
 
 /// <summary>
@@ -75,4 +160,38 @@ internal sealed class Collision2D
     public Collider2D Self;
     public Collider2D Other;
     public float X, Y, NX, NY, Impulse;
+
+    // ---- Unity-named members -------------------------------------------------------------
+    // As in Unity: <c>collider</c> is the other collider, <c>otherCollider</c> the one hearing the message, and <c>gameObject</c> the other's node.
+    // Unity's relativeVelocity is not kept, and there is one contact point however many a pair really has.
+
+    public Collider2D collider { get { return Other; } }
+    public Collider2D otherCollider { get { return Self; } }
+    public Node gameObject { get { return Other.Self.Node; } }
+    public Node transform { get { return Other.Self.Node; } }
+
+    public int contactCount { get { return 1; } }
+
+    /// <summary>The contact point; the index is ignored (there is one).</summary>
+    public ContactPoint2D GetContact(int index)
+    {
+        Vector2 p = new Vector2(X, Y);
+        Vector2 n = new Vector2(NX, NY);
+        return new ContactPoint2D(p, n, Impulse);
+    }
+}
+
+/// <summary>UnityEngine.ContactPoint2D: where two colliders touched, with the normal pointing from the other collider toward the one hearing the message.</summary>
+internal struct ContactPoint2D
+{
+    public Vector2 point;
+    public Vector2 normal;
+    public float normalImpulse;
+
+    public ContactPoint2D(Vector2 p, Vector2 n, float impulse)
+    {
+        point = p;
+        normal = n;
+        normalImpulse = impulse;
+    }
 }
