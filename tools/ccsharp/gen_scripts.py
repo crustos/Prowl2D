@@ -13,9 +13,13 @@ What it reads from a script class (and refuses, with the file and line, when it 
   * `[Script]` or `[Script(Order = n)]`           the execution order, lower first
   * `[MaxInstances(N)]`                            how many can exist at once; N must be an integer literal here
   * `public Component Self;`                       set by the factory (Scripts.AddName(node) returns the script; Scripts.AttachName(node) returns nothing)
+  * `public Node transform;` and `public Node gameObject;`   optional, as Unity's MonoBehaviour has them: set by the factory to the script's node
+                                                   (`Transform` and `GameObject` are accepted as the type too, for a game that says
+                                                   `using Transform = Prowl.Core2D.Node;`)
   * the callbacks, by name and signature:
         Start() Update() FixedUpdate() LateUpdate() OnEnable() OnDisable()
         OnCollisionBegin2D(Collision2D c)  OnCollisionEnd2D(Collision2D c)
+        OnCollisionEnter2D(Collision2D c)  OnCollisionExit2D(Collision2D c)       (Unity's names for the two above: a script has one or the other)
         OnTriggerEnter2D(Collider2D other) OnTriggerStay2D(Collider2D other) OnTriggerExit2D(Collider2D other)
   * `public void Reset()`                           optional: puts a recycled instance back to its starting state. Without it a recycled
                                                    instance keeps the fields it had (field initialisers run only for a new object).
@@ -36,6 +40,8 @@ CALLBACKS = [
     ("LateUpdate", "LateUpdate", None, None),
     ("OnCollisionBegin2D", "CollisionBegin2D", "Collision2D", "scene.Collision"),
     ("OnCollisionEnd2D", "CollisionEnd2D", "Collision2D", "scene.Collision"),
+    ("OnCollisionEnter2D", "CollisionBegin2D", "Collision2D", "scene.Collision"),      # Unity's name for OnCollisionBegin2D
+    ("OnCollisionExit2D", "CollisionEnd2D", "Collision2D", "scene.Collision"),         # Unity's name for OnCollisionEnd2D
     ("OnTriggerEnter2D", "TriggerEnter2D", "Collider2D", "scene.Collision.Other"),
     ("OnTriggerStay2D", "TriggerStay2D", "Collider2D", "scene.Collision.Other"),
     ("OnTriggerExit2D", "TriggerExit2D", "Collider2D", "scene.Collision.Other"),
@@ -125,13 +131,22 @@ def scan_file(path):
                 if not ok:
                     raise GenError("%s: script %s: %s must be `public void %s(%s)`" % (where, name, cb_name, cb_name, (ptype + " x") if ptype else ""))
                 has[cb_name] = True
+        bits = {}
+        for cb_name, bit, _ptype, _arg in CALLBACKS:
+            if cb_name in has:
+                if bit in bits:
+                    raise GenError("%s: script %s has both %s and %s, which are the same callback (Unity's name and Prowl's): keep one" % (where, name, bits[bit], cb_name))
+                bits[bit] = cb_name
         # a callback that is almost right is a callback that silently never runs: refuse the lookalikes
         for mm in re.finditer(r"\bvoid\s+(\w+)\s*\(", body):
             nm = mm.group(1)
             if nm in [c[0] for c in CALLBACKS] and nm not in has:
                 raise GenError("%s: script %s: %s is declared but is not `public void` with the expected parameters, so it would never be called" % (where, name, nm))
         has_reset = bool(re.search(r"\bpublic\s+void\s+Reset\s*\(\s*\)", body))
-        scripts.append(dict(name=name, order=order, capacity=capacity, callbacks=[c for c in CALLBACKS if c[0] in has], reset=has_reset, where=where))
+        has_transform = bool(re.search(r"\bpublic\s+(?:Node|Transform)\s+transform\s*;", body))
+        has_gameobject = bool(re.search(r"\bpublic\s+(?:Node|GameObject)\s+gameObject\s*;", body))
+        scripts.append(dict(name=name, order=order, capacity=capacity, callbacks=[c for c in CALLBACKS if c[0] in has], reset=has_reset, where=where,
+                            transform=has_transform, gameobject=has_gameobject))
     return namespaces, scripts
 
 
@@ -217,6 +232,10 @@ def generate(out_path, sources):
         L.append("            return null;")
         L.append("        }")
         L.append("        s.Self = c;")
+        if s["transform"]:
+            L.append("        s.transform = node;")
+        if s["gameobject"]:
+            L.append("        s.gameObject = node;")
         L.append("        Scene2D.Current.Finish(c);                   // enabled now, so the script is set up before its OnEnable can be delivered")
         L.append("        return s;")
         L.append("    }")
@@ -249,6 +268,8 @@ def generate(out_path, sources):
     L.append("    /// </summary>")
     L.append("    public static void Tick(Scene2D scene, float dt)")
     L.append("    {")
+    L.append("        float rawDt = dt;")
+    L.append("        dt = dt * scene.TimeScale;                   // Unity's Time.timeScale: 1 is real time, 0 stops the game")
     L.append("        _accumulator += dt;")
     L.append("        int count = 0;")
     L.append("        while (_accumulator >= scene.FixedDeltaTime && count < MaxFixedIterations)")
@@ -262,6 +283,7 @@ def generate(out_path, sources):
     L.append("        float alpha = _accumulator / scene.FixedDeltaTime;")
     L.append("        if (alpha > 1f) alpha = 1f;")
     L.append("        scene.BeginFrame(dt, alpha);")
+    L.append("        scene.UnscaledDeltaTime = rawDt;")
     L.append("        Pump(scene);")
     L.append("    }")
     L.append("")

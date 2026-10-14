@@ -65,6 +65,7 @@ FEATURES = {
     "terrain": r"\b(PixelTerrain2D|StampShape|PixelChunk|PixelRange|PixelColumn|PixelRectMerge|PixelQuadTree|PixelChainTrace|SandSim)\b",
     "destruction": r"\b(Shatter2D|Fracturer|PolySet|ExplodeOptions)\b",
     "ui": r"\b(UIText|Prowl\.Core2D\.UI)\b",
+    "unity": r"\bUnityEngine\b",
 }
 
 
@@ -670,7 +671,9 @@ CONFORMANCE = [
     ("registry", "RegistryConformance", [rt("Physics2D", f) for f in ("HandleTable.cs", "MaxInstancesAttribute.cs", "Arena.cs", "BodyRecord.cs", "JointRecord.cs", "Registry2D.cs", "Pose2D.cs")],
      os.path.join(HERE, "conformance", "RegistryConformance.cs")),
     # tier 1 of the 2D runtime: the node hierarchy and its transforms, against a naive model that recomputes every world from the root
-    ("node", "NodeConformance", [rt("Physics2D", "MaxInstancesAttribute.cs"), rt("Physics2D", "Arena.cs"), rt("Physics2D", "Pose2D.cs"), c2("CoreLimits.cs"), c2("Node.cs")],
+    # (Node's Unity-named members use the UnityEngine value types, and reach the scene: the stand-ins in NodeTierStubs.cs let it bind without it)
+    ("node", "NodeConformance", [rt("Physics2D", "MaxInstancesAttribute.cs"), rt("Physics2D", "Arena.cs"), rt("Physics2D", "Pose2D.cs"), c2("CoreLimits.cs"),
+                                 c2("Unity", "Enums.cs"), c2("Unity", "Vector3.cs"), c2("Unity", "Quaternion.cs"), os.path.join(HERE, "conformance", "NodeTierStubs.cs"), c2("Node.cs")],
      os.path.join(HERE, "conformance", "NodeConformance.cs")),
     # tier 2: the scene, components and the order of the game's callbacks; scripts mutate the scene in the middle of dispatch
     ("lifecycle", "LifecycleConformance", CORE2D_FILES(), os.path.join(HERE, "conformance", "LifecycleConformance.cs"), True, True),
