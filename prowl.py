@@ -96,7 +96,7 @@ def cmd_import_unity(out_json, roots, scenes=True, cell=None):
 
 def cmd_selftest():
     import unittest
-    names = ["prowl_editor.test_core", "prowl_editor.test_cli"]
+    names = ["prowl_editor.test_core", "prowl_editor.test_cli", "prowl_editor.test_gpu_physics"]
     try:
         import PyQt5  # noqa: F401
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -158,6 +158,10 @@ def cmd_gui(project, open_viewport, quit_after=None, demo=None, imported=None, a
         studio.select_level(imported[1][0])
     if api is not None:
         api.run_gui_hooks(studio, main, windows, args)
+    if args is not None and getattr(args, "gpu_physics", None):
+        vc = main.viewport
+        vc.gpu_backend, vc.gpu_scripts, vc.gpu_kernel_dir = args.gpu_physics, list(args.gpu_script), args.gpu_kernels
+        main.gpu_action.setChecked(True)
     from PyQt5 import QtCore
     if demo == "slime":                          # show the slime's sprite (and its blinking eyes) and the dirt tile in the editors
         studio.select_sprite(next(sp for sp in studio.project.sprites if sp.name == "slime"))
@@ -277,6 +281,10 @@ def build_parser(api):
     ap.add_argument("--unity", nargs="*", default=[], metavar="DIR", help="a Unity project folder, any folder of PNGs, or a PNG file")
     ap.add_argument("--sprites", nargs="*", default=[], metavar="FILE.txt")
     ap.add_argument("--levels", nargs="*", default=[], metavar="FILE.txt")
+    ap.add_argument("--gpu-physics", nargs="?", const="auto", choices=["auto", "wgpu", "interp"], metavar="BACKEND",
+                    help="play levels on the GPU physics engine (circles/particles from crustos/gpu-physics-engine, kernels compiled by Crust to SPIR-V) instead of Box2D for the balls; BACKEND: auto (wgpu, else the slow reference interpreter), wgpu, interp. See GPU.md")
+    ap.add_argument("--gpu-script", action="append", default=[], metavar="FILE.cs", help="with --gpu-physics: a C# [GpuKernel] script run on the GPU on every ball each step; repeatable")
+    ap.add_argument("--gpu-kernels", metavar="DIR", help="with --gpu-physics: the compiled kernels (default gpu/spirv, or $PROWL_GPU_KERNELS)")
     ap.add_argument("--selftest", action="store_true")
     ap.add_argument("--screenshots", metavar="DIR")
     ap.add_argument("--quit-after", type=float, metavar="SECONDS", help=argparse.SUPPRESS)

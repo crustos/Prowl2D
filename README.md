@@ -512,3 +512,7 @@ The pixel terrain and the shattering of sprites in `Prowl.Runtime/Destruction2D`
 ## License
 
 MIT, see [LICENSE](LICENSE).
+
+## GPU physics
+
+`python3 prowl.py --gpu-physics` plays balls on the GPU physics engine (Rust kernels compiled to SPIR-V by Crust) and can run C# `[GpuKernel]` scripts on the GPU. See [GPU.md](GPU.md).
