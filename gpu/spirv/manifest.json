@@ -842,6 +842,275 @@
       }
     ]
   },
+  "prowl_material": {
+    "file": "prowl_material.spv",
+    "entry_points": [
+      {
+        "name": "integrate_material",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "previous_positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 11,
+            "name": "material",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 13,
+            "name": "inv_mass",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "delta_time",
+            "offset": 0,
+            "type": "f32"
+          },
+          {
+            "name": "gravity_x",
+            "offset": 4,
+            "type": "f32"
+          },
+          {
+            "name": "gravity_y",
+            "offset": 8,
+            "type": "f32"
+          },
+          {
+            "name": "damping",
+            "offset": 12,
+            "type": "f32"
+          },
+          {
+            "name": "world_width",
+            "offset": 16,
+            "type": "f32"
+          },
+          {
+            "name": "world_height",
+            "offset": 20,
+            "type": "f32"
+          },
+          {
+            "name": "num_particles",
+            "offset": 24,
+            "type": "u32"
+          }
+        ],
+        "push_size": 28,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "solve_collisions_filtered",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "chunk_obj_count",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "collision_cells",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "cell_ids",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 3,
+            "name": "object_ids",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 4,
+            "name": "positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 5,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 6,
+            "name": "uniform_data",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 7,
+            "name": "filter",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 8,
+            "name": "material",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 9,
+            "name": "inv_mass",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 10,
+            "name": "previous_positions",
+            "access": "read_write"
+          }
+        ],
+        "push": [
+          {
+            "name": "current_cell_color",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "bounce_threshold",
+            "offset": 4,
+            "type": "f32"
+          }
+        ],
+        "push_size": 8,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "tile_material",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "previous_positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 5,
+            "name": "tiles",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 11,
+            "name": "material",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 13,
+            "name": "inv_mass",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 14,
+            "name": "omega",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "tiles_w",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "tiles_h",
+            "offset": 4,
+            "type": "u32"
+          },
+          {
+            "name": "num_particles",
+            "offset": 8,
+            "type": "u32"
+          },
+          {
+            "name": "tile_friction",
+            "offset": 12,
+            "type": "f32"
+          },
+          {
+            "name": "tile_bounciness",
+            "offset": 16,
+            "type": "f32"
+          },
+          {
+            "name": "bounce_threshold",
+            "offset": 20,
+            "type": "f32"
+          }
+        ],
+        "push_size": 24,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ]
+  },
   "prowl_world": {
     "file": "prowl_world.spv",
     "entry_points": [
