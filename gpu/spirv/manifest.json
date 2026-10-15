@@ -74,7 +74,8 @@
         "push": [],
         "push_size": 0
       }
-    ]
+    ],
+    "wgsl": "collision_cell_builder.wgsl"
   },
   "collision_solver": {
     "file": "collision_solver.spv",
@@ -143,7 +144,8 @@
           "binding": 30
         }
       }
-    ]
+    ],
+    "wgsl": "collision_solver.wgsl"
   },
   "grid": {
     "file": "grid.spv",
@@ -199,7 +201,8 @@
           "binding": 30
         }
       }
-    ]
+    ],
+    "wgsl": "grid.wgsl"
   },
   "home_cell_ids": {
     "file": "home_cell_ids.spv",
@@ -249,7 +252,8 @@
           "binding": 30
         }
       }
-    ]
+    ],
+    "wgsl": "home_cell_ids.wgsl"
   },
   "particle_integration": {
     "file": "particle_integration.spv",
@@ -324,7 +328,8 @@
           "binding": 30
         }
       }
-    ]
+    ],
+    "wgsl": "particle_integration.wgsl"
   },
   "prefix_sum": {
     "file": "prefix_sum.spv",
@@ -415,7 +420,8 @@
           "binding": 30
         }
       }
-    ]
+    ],
+    "wgsl": "prefix_sum.wgsl"
   },
   "prowl_bodies": {
     "file": "prowl_bodies.spv",
@@ -840,7 +846,8 @@
           "binding": 30
         }
       }
-    ]
+    ],
+    "wgsl": "prowl_bodies.wgsl"
   },
   "prowl_material": {
     "file": "prowl_material.spv",
@@ -875,12 +882,6 @@
             "set": 0,
             "binding": 11,
             "name": "material",
-            "access": "read"
-          },
-          {
-            "set": 0,
-            "binding": 13,
-            "name": "inv_mass",
             "access": "read"
           }
         ],
@@ -991,12 +992,6 @@
           },
           {
             "set": 0,
-            "binding": 9,
-            "name": "inv_mass",
-            "access": "read"
-          },
-          {
-            "set": 0,
             "binding": 10,
             "name": "previous_positions",
             "access": "read_write"
@@ -1060,12 +1055,6 @@
           },
           {
             "set": 0,
-            "binding": 13,
-            "name": "inv_mass",
-            "access": "read"
-          },
-          {
-            "set": 0,
             "binding": 14,
             "name": "omega",
             "access": "read"
@@ -1109,7 +1098,8 @@
           "binding": 30
         }
       }
-    ]
+    ],
+    "wgsl": "prowl_material.wgsl"
   },
   "prowl_world": {
     "file": "prowl_world.spv",
@@ -1234,7 +1224,8 @@
           "binding": 30
         }
       }
-    ]
+    ],
+    "wgsl": "prowl_world.wgsl"
   },
   "radix_sort": {
     "file": "radix_sort.spv",
@@ -1355,7 +1346,8 @@
           "binding": 30
         }
       }
-    ]
+    ],
+    "wgsl": "radix_sort.wgsl"
   },
   "rearrange": {
     "file": "rearrange.spv",
@@ -1424,9 +1416,13 @@
           "binding": 30
         }
       }
-    ]
+    ],
+    "wgsl": "rearrange.wgsl"
   },
   "_meta": {
-    "push_mode": "buffer"
+    "push_mode": "buffer",
+    "wgsl": {
+      "params": "uniform"
+    }
   }
 }
