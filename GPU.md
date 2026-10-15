@@ -85,10 +85,24 @@ The page uses WebGPU where the browser has it and WebAssembly where it does not;
 and drag (or the sand tool) for sand, **T** hangs a rope, right click blasts (diggable tiles go, crates shatter into shards), **R** restarts. It plays what the Python
 driver plays (crates from movable tiles, shards, balls, sand, ropes, blasts that dig) and not what runs on Box2D: scripts, sprites of the engine, the editor.
 
-`gpu/web` holds the engine's files, copied from gpu-physics-engine: `runtime/wasm/gpuphys.js`, `runtime/wasm/dist/gpuphys.wasm` (build it with `runtime/wasm/build.py`) and
-`web/gpuphys_webgpu.js`. `python3 tools/gpu_web_test.py` exports the demo level and plays it on both engines in headless Chromium (WebGPU on SwiftShader: slow, but the real API with the
-real WGSL): the crates become crates and land, balls and sand fall and rest, a blast digs. `--shot DIR` keeps the pictures. Headless Chromium on software Vulkan loses the WebGPU device
+`gpu/web` holds the engine's files, copied from gpu-physics-engine: `runtime/wasm/gpuphys.js`, `runtime/wasm/dist/gpuphys.wasm` (build it with `runtime/wasm/build.py`),
+`web/gpuphys_webgpu.js` and `web/windfoil.js` (`curves.js` and `player.js` are this repo's). `python3 tools/gpu_web_test.py` exports the demo level and plays it on both engines in headless Chromium (WebGPU on SwiftShader: slow, but the real API with the
+real WGSL): the crates become crates and land, balls and sand fall and rest, a blast digs, balls roll off the hill and rest in the bowl, and Windfoil's layer matches Canvas 2D. `--shot DIR` keeps the pictures. Headless Chromium on software Vulkan loses the WebGPU device
 when a canvas is presented, so the test reads the Canvas 2D page, which draws from the engine's snapshot; the WebGPU engine itself is driven the same way.
+
+### Smooth surfaces (Bezier curves)
+
+`level.json` may carry `"curves"`: hills, banks and ramps made of quadratic Bezier segments instead of tiles, so a ball rolls on a smooth line. The demo has a grassy hill and a thin bowl.
+
+    {"kind": "solid", "segments": [[15.5,2, 17,5.8, 19,4.9], [19,4.9, 21,4, 22.5,2]], "friction": 0.4, "bounciness": 0, "fill": "#58a846", "edge": "#2f6b2a"}
+    {"kind": "wall",  "segments": [[0.6,9.6, 2.6,5.8, 4.6,9.2]], "friction": 0.3, "bounciness": 0.2, "fill": "#c9a0dc", "thickness": 0.14}
+
+Each segment is `[x0, y0, control x, control y, x1, y1]` in tile units, y up; segments go end to end. A **solid** is something you can be inside of: the side its outline
+encloses (closed by a straight line back to the start unless `"closed": true`) is solid, and balls, crates, shards and sand are pushed out of it. A **wall** is solid on both faces.
+Friction and bounciness are Unity's numbers. `python3 tools/export_gpu_web.py MyGame.prowl --curves curves.json` adds a list of them to any level (`--demo` has its own);
+the editor does not author curves yet. Both engines collide with them (the engine's `prowl_curves` kernels, see gpu-physics-engine's README), and `gpu/web/curves.js` draws them
+into a layer with **Windfoil** (closed-form antialiasing of the outlines on WebGPU, `windfoil.js`) or with Canvas 2D where there is no WebGPU (`?curves=canvas` forces it).
+The Python driver (`GpuWorld`) has no curve calls: the curves are a feature of the browser player. A circle that moves more than its radius in a step can still tunnel through a thin wall.
 
 ## Input
 
