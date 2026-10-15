@@ -250,6 +250,58 @@ class BodyTests(unittest.TestCase):
         self.assertGreater(sum(v[0] for v in w.read_velocities()), 5.0)   # pushed to the right
 
 
+@unittest.skipUnless(HAVE, "needs Crust and gpu/spirv")
+class MaterialTests(unittest.TestCase):
+    def world(self, **kw):
+        from prowl_editor.gpu_physics import make_backend, GpuWorld
+        return GpuWorld(make_backend("interp"), **dict(dict(capacity=64, world=(12.0, 8.0), max_radius=0.4), **kw))
+
+    def test_plain_worlds_keep_the_old_path(self):
+        w = self.world()
+        w.add_ball(5.0, 3.0)
+        w.step(1 / 60.0)
+        self.assertFalse(w.use_material)
+
+    def test_bounciness_gravity_scale_and_filters(self):
+        w = self.world()
+        w.set_tiles(12, 8, lambda tx, ty: ty < 1)
+        w.set_world_material(friction=0.4, bounciness=0.0)
+        live = w.add_ball(2.0, 2.6)                    # rubber: keeps most of its speed off the floor
+        dead = w.add_ball(4.0, 2.6)                    # default material: stops
+        self.assertTrue(w.set_material(live, friction=0.4, bounciness=0.8))
+        float_a = w.add_ball(8.0, 4.0)                 # gravity scale 0: floats
+        w.set_material(float_a, gravity_scale=0.0)
+        ghost = w.add_ball(8.0, 5.0)                   # falls onto it, but masks exclude each other
+        w.set_filter(float_a, category=2, mask=2)
+        w.set_filter(ghost, category=4, mask=4)
+        low = {live: 99.0, dead: 99.0}
+        peak_after = {live: 0.0, dead: 0.0}
+        landed = False
+        for _ in range(48):
+            w.step(1 / 60.0)
+            for name, bid in (("live", live), ("dead", dead)):
+                y = w.get_position(w.bodies[bid].circles[0])[1]
+                if y < low[bid]:
+                    low[bid] = y
+                elif y > low[bid] + 0.02:
+                    peak_after[bid] = max(peak_after[bid], y - low[bid])
+        self.assertGreater(peak_after[live], peak_after[dead] + 0.15)       # rubber rebounds, default does not
+        fy = w.get_position(w.bodies[float_a].circles[0])[1]
+        self.assertAlmostEqual(fy, 4.0, delta=0.05)                         # nothing moved it
+        gy = w.get_position(w.bodies[ghost].circles[0])[1]
+        self.assertLess(gy, fy - 0.3)                                       # the ghost passed through
+
+    def test_sensor_bodies_pass_through_other_circles(self):
+        w = self.world()
+        floor = w.add_ball(6.0, 4.0)
+        w.set_material(floor, gravity_scale=0.0)
+        s = w.add_ball(6.0, 4.9)
+        w.set_sensor(s)
+        for _ in range(30):
+            w.step(1 / 60.0)
+        self.assertLess(w.get_position(w.bodies[s].circles[0])[1], 4.0 - 0.2)   # went through the ball it fell on
+
+
 class _Lib:
     """Just enough of the engine for the driver: keys, mouse, nodes."""
     def __init__(self):
