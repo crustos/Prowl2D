@@ -29,8 +29,7 @@ class MaterialMixin:
         b = self.b
         self.use_material = False
         self.bounce_threshold = 1.0                    # units per second
-        self.material_buf = b.alloc(16 * cap)          # f32 x4: friction, bounciness, gravity scale, damping
-        self.inv_mass_buf = b.alloc(4 * cap)
+        self.material_buf = b.alloc(20 * cap)          # f32 x5: friction, bounciness, gravity scale, damping, inverse mass
         self.filter_buf = b.alloc(16 * cap)            # u32 x4: category, mask, group (i32), body
         self.omega_buf = b.alloc(4 * cap)              # spin of each circle, zero: balls here do not spin
         b.write(self.omega_buf, bytes(4 * cap))
@@ -119,7 +118,7 @@ class MaterialMixin:
     # the step ---------------------------------------------------------------------------
     def _upload_material(self, dt):
         n = self.n
-        mat, inv, flt = [], [], []
+        mat, flt = [], []
         tags = struct.unpack("<%dI" % n, self.b.read(self.tags, 0, 4 * n)) if n else ()
         rad = self.read_radii()
         for i in range(n):
@@ -127,14 +126,12 @@ class MaterialMixin:
             if not self._m_custom[i]:
                 f = self.friction
             sand = self.sand_damping / self.damping if tags[i] == 1 else 1.0
-            mat.extend((f, e, gs, sand / (1.0 + self._m_drag[i] * dt)))
-            inv.append(1.0 / (rad[i] * self._m_dens[i]))
+            mat.extend((f, e, gs, sand / (1.0 + self._m_drag[i] * dt), 1.0 / (rad[i] * self._m_dens[i])))
             cat, mask, grp = self._m_flt[i]
             if self._m_sensor[i]:
                 cat = mask = grp = 0
             flt.extend((cat, mask, grp & ALL, self.owner[i]))
-        self.b.write(self.material_buf, struct.pack("<%df" % (4 * n), *mat))
-        self.b.write(self.inv_mass_buf, struct.pack("<%df" % n, *inv))
+        self.b.write(self.material_buf, struct.pack("<%df" % (5 * n), *mat))
         self.b.write(self.filter_buf, struct.pack("<%dI" % (4 * n), *flt))
 
     def _material_integrate(self, dt):
@@ -142,7 +139,7 @@ class MaterialMixin:
                   struct.pack("<6fI", dt, self.gravity[0], self.gravity[1], self.damping,
                               self.world[0], self.world[1], self.n),
                   positions=self.positions, previous_positions=self.previous, radius=self.radius,
-                  material=self.material_buf, inv_mass=self.inv_mass_buf)
+                  material=self.material_buf)
 
     def _material_solve(self, dt):
         prog = self.k.entry("solve_collisions_filtered")
@@ -150,7 +147,7 @@ class MaterialMixin:
                            collision_cells=self.collision_cells, cell_ids=self.cell_ids,
                            object_ids=self.object_ids, positions=self.positions, radius=self.radius,
                            uniform_data=self.cell_uniform, filter=self.filter_buf,
-                           material=self.material_buf, inv_mass=self.inv_mass_buf,
+                           material=self.material_buf,
                            previous_positions=self.previous)
         for color in (1, 2, 3, 4):
             self.b.dispatch_indirect(prog, "solve_collisions_filtered", self.indirect, binds,
@@ -163,5 +160,5 @@ class MaterialMixin:
                       struct.pack("<3I3f", w, h, self.n, self.friction, 1.0 - self.bounce_loss,
                                   self.bounce_threshold * dt),
                       positions=self.positions, previous_positions=self.previous, radius=self.radius,
-                      tiles=self.tiles, material=self.material_buf, inv_mass=self.inv_mass_buf,
+                      tiles=self.tiles, material=self.material_buf,
                       omega=self.omega_buf)
