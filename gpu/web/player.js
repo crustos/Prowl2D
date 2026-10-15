@@ -6,7 +6,9 @@
 //
 // Controls: click drops a ball, B a crate, hold F and drag (or the sand tool) for sand, T hangs a rope, right click blasts
 // (diggable tiles go, crates shatter into shards), R restarts.
+// level.json's "curves" (see curves.js) are smooth Bezier surfaces: colliders on both engines, drawn by Windfoil (`?curves=canvas` for Canvas 2D).
 import { loadGpuPhys } from "./gpuphys.js";
+import { solidSide, bakeLayer } from "./curves.js";
 
 const FIXED = 1 / 60, BALL_R = 0.35, SAND_R = 0.08, GRAVITY = [0, -18], SHARD_TTL = 2.5;
 const q = new URLSearchParams(location.search);
@@ -14,6 +16,15 @@ const $ = (id) => document.getElementById(id);
 const canvas = $("screen"), ctx = canvas.getContext("2d"), msg = $("msg"), stats = $("stats");
 
 // ------------------------------------------------------------------------------------------ engines
+/** Hands level.json's curves to an engine's world: a solid's segments get the side its outline encloses, a wall is solid on both faces. */
+function addCurves(world, curves) {
+  let n = 0;
+  for (const c of curves || []) {
+    const side = c.kind === "wall" ? 0 : solidSide(c);
+    for (const q of c.segments) if (world.addCurve(q[0], q[1], q[2], q[3], q[4], q[5], c.friction ?? 0.4, c.bounciness ?? 0, side) >= 0) n++;
+  }
+  return n;
+}
 class WasmEngine {
   static async create(level) {
     const gp = await loadGpuPhys(new URL("gpuphys.wasm", import.meta.url));
@@ -26,6 +37,7 @@ class WasmEngine {
     this.bodies = new Map();        // id -> kind
   }
   setSolid(cells, w, h) { this.world.setTiles(w, h, cells); }
+  addCurves(curves) { return addCurves(this.world, curves); }
   addBall(x, y, vx = 0, vy = 0) { const id = this.world.addBall(x, y, BALL_R, vx, vy); if (id >= 0) this.bodies.set(id, "ball"); return id; }
   addCrate(x, y, w, h, angle = 0, vx = 0, vy = 0) { const id = this.world.addBox(x, y, w, h, angle, vx, vy); if (id >= 0) this.bodies.set(id, "box"); return id; }
   addRope(ax, ay, bx, by) { const id = this.world.addRope(ax, ay, bx, by, 14, 0.09, true, false); if (id >= 0) this.bodies.set(id, "rope"); return id; }
@@ -72,6 +84,7 @@ class WebGpuEngine {
   }
   constructor(world, adapter) { this.name = "webgpu"; this.world = world; this.adapter = adapter; this.bodies = new Map(); this.shapes = new Map(); }
   setSolid(cells, w, h) { this.world.setTileGrid(w, h, cells); }
+  addCurves(curves) { return addCurves(this.world, curves); }
   addBall(x, y, vx = 0, vy = 0) { try { const id = this.world.addBall(x, y, BALL_R, vx, vy); this.bodies.set(id, "ball"); return id; } catch { return -1; } }
   addCrate(x, y, w, h, angle = 0, vx = 0, vy = 0) { try { const id = this.world.addBox(x, y, w, h, angle, vx, vy); this.bodies.set(id, "box"); return id; } catch { return -1; } }
   addRope(ax, ay, bx, by) { try { const id = this.world.addRope(ax, ay, bx, by, 14, 0.09, true, false); this.bodies.set(id, "rope"); return id; } catch { return -1; } }
@@ -111,7 +124,7 @@ await Promise.all(Object.entries(level.tiles).map(async ([emoji, t]) => {
   images[emoji] = await Promise.all(t.sprite.map((url) => new Promise((ok) => { const im = new Image(); im.onload = () => ok(im); im.src = url; })));
 }));
 
-let engine, state;
+let engine, state, layer = null;
 async function makeEngine() {
   const want = q.get("engine") || "auto";
   const errors = [];
@@ -136,6 +149,8 @@ async function start() {
   state = { cells: [...level.cells], crates: new Map(), balls: [], shards: [], time: 0, acc: 0, snap: null, steps: 0 };
   engine = await makeEngine();
   engine.setSolid(solidGrid(), W, H);
+  state.curves = engine.addCurves(level.curves);
+  await rebake();
   for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
     const emoji = state.cells[(H - 1 - ty) * W + tx], t = level.tiles[emoji];
     if (t && t.dynamic) {                                       // a movable tile becomes a crate
@@ -187,6 +202,13 @@ function fit() {
   view.s = Math.min(canvas.width / W, canvas.height / H);
   view.ox = (canvas.width - W * view.s) / 2; view.oy = (canvas.height - H * view.s) / 2;
 }
+/** Paints the curves for the current canvas size (at the start and after a resize). */
+async function rebake(mode = q.get("curves") || "auto") {
+  layer = null;
+  if (!level.curves?.length) return null;
+  layer = await bakeLayer(level.curves, { width: canvas.width, height: canvas.height, scale: view.s, camera: [W / 2, H / 2], mode });
+  return layer;
+}
 const toScreen = (x, y) => [view.ox + x * view.s, view.oy + (H - y) * view.s];
 function toWorld(ev) {
   const r = canvas.getBoundingClientRect(), px = (ev.clientX - r.left) * canvas.width / r.width, py = (ev.clientY - r.top) * canvas.height / r.height;
@@ -209,6 +231,7 @@ function draw() {
     if (im) ctx.drawImage(im, sx, sy, view.s + 0.5, view.s + 0.5);
     else { ctx.fillStyle = "#6b7a90"; ctx.fillRect(sx, sy, view.s, view.s); }
   }
+  if (layer?.canvas) ctx.drawImage(layer.canvas, 0, 0);
   const snap = state.snap;
   if (!snap) return;
   for (const [id, crate] of state.crates) drawBox(snap.poses.get(id), 1, 1, crate.emoji);
@@ -271,7 +294,9 @@ async function act(what, [x, y]) {
 
 // -------------------------------------------------------------------------------------------- loop
 async function restart() { await start(); }
-fit(); addEventListener("resize", () => fit());
+fit();
+let resizing = 0;
+addEventListener("resize", () => { fit(); clearTimeout(resizing); resizing = setTimeout(() => rebake().then(draw), 150); });
 await start();
 
 let last = performance.now(), counted = 0, since = last, busy = false;
@@ -297,7 +322,7 @@ if (!q.has("manual")) requestAnimationFrame(frame);
 window.player = {
   get engine() { return engine.name; }, level, get state() { return state; },
   async step(n = 1) { for (let i = 0; i < n; i++) stepOnce(); state.snap = await engine.snapshot(); draw(); return state.steps; },
-  act, blast, restart, get snap() { return state.snap; }, get circles() { return engine.circles; },
+  act, blast, restart, rebake, get layer() { return layer; }, get snap() { return state.snap; }, get circles() { return engine.circles; },
   get engineObject() { return engine; },
   async png() { return canvas.toDataURL("image/png"); },
 };
