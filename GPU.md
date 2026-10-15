@@ -21,7 +21,8 @@ the change restarts a level that is being played.
 * Without a GPU or kernels the viewport says so in its status line and keeps the Box2D balls.
 
 The kernels in `gpu/spirv` are prebuilt (params in a storage buffer, so no push-constant feature is needed).
-Rebuild with `python3 gpu-physics-engine/build.py --push-buffer --out gpu/spirv --crust ../crust`.
+Rebuild with `python3 gpu-physics-engine/build.py --wgsl --out gpu/spirv --crust ../crust` (`--wgsl` also writes the WGSL a browser needs, and implies `--push-buffer`;
+it needs `naga`: `cargo install naga-cli --locked`).
 
 ## What runs where
 
@@ -68,6 +69,26 @@ Ropes and sensors are used through the driver's `world` (`Magnet`-style scripts 
   worlds that never call it step as before. Joints between bodies (revolute, prismatic, wheel, ...), contact
   begin/end events, ball spin and polygons are in the C runtime of gpu-physics-engine (`gpuphys.c`) and are **not** in this
   Python host yet: they run on the CPU there, so a port would be a second solver.
+
+## In the browser
+
+    python3 tools/export_gpu_web.py --demo --out Build/GpuWeb            # or: export_gpu_web.py MyGame.json --level "first steps"
+    python3 -m http.server -d Build/GpuWeb                              # open http://localhost:8000
+
+`export_gpu_web.py` writes a page that plays a level on the engine, in the browser: `level.json` (the cells, the tiles that are used with their solid / movable /
+diggable flags, and their sprites as PNGs), the player (`gpu/web/player.js`, Canvas 2D) and the engine in two forms:
+
+* **WebAssembly** (`gpuphys.wasm`): the engine's whole C runtime on the CPU: crates, polygons, joints, contact events, material, filters, ray casts.
+* **WebGPU** (`gpuphys_webgpu.js` and `spirv/*.wgsl`): the circle pipeline of this folder's Python host, in JavaScript, on the GPU: thousands of grains.
+
+The page uses WebGPU where the browser has it and WebAssembly where it does not; `?engine=wasm` or `?engine=webgpu` force one. Click drops a ball, **B** a crate, hold **F**
+and drag (or the sand tool) for sand, **T** hangs a rope, right click blasts (diggable tiles go, crates shatter into shards), **R** restarts. It plays what the Python
+driver plays (crates from movable tiles, shards, balls, sand, ropes, blasts that dig) and not what runs on Box2D: scripts, sprites of the engine, the editor.
+
+`gpu/web` holds the engine's files, copied from gpu-physics-engine: `runtime/wasm/gpuphys.js`, `runtime/wasm/dist/gpuphys.wasm` (build it with `runtime/wasm/build.py`) and
+`web/gpuphys_webgpu.js`. `python3 tools/gpu_web_test.py` exports the demo level and plays it on both engines in headless Chromium (WebGPU on SwiftShader: slow, but the real API with the
+real WGSL): the crates become crates and land, balls and sand fall and rest, a blast digs. `--shot DIR` keeps the pictures. Headless Chromium on software Vulkan loses the WebGPU device
+when a canvas is presented, so the test reads the Canvas 2D page, which draws from the engine's snapshot; the WebGPU engine itself is driven the same way.
 
 ## Input
 
