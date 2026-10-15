@@ -36,6 +36,7 @@ Rebuild with `python3 gpu-physics-engine/build.py --push-buffer --out gpu/spirv 
 | ray casts | `world.raycast(_many)` against tiles and circles | `p2d_` ray casts of scripts |
 | sensors | `world.add_sensor`, counts + enter/exit events | contact callbacks of Box2D bodies |
 | level | the solid tiles, re-read after digging | - |
+| per-body material, filters | `driver.set_material / set_collision_filter / set_is_trigger` (friction, bounciness, density, gravity scale, drag, categories) | - |
 | anything else | - | polygons other than boxes, script-made bodies, sprites, the engine's own scripts |
 
 The two worlds do not collide with each other. This is a hybrid: the GPU engine has only circles,
@@ -59,6 +60,14 @@ Ropes and sensors are used through the driver's `world` (`Magnet`-style scripts 
     w.add_rope(3, 8, 7, 8, segments=12)            # pinned at its first end
     sid = w.add_sensor(10, 2, 1, 1, tags=(0,))      # counts balls in a box
     hit = w.raycast(5, 9, 0, -1)                    # Hit(t, x, y, nx, ny, kind, index, body) or None
+
+* **Material and filtering** (kernels `prowl_material`; rebuild `gpu/spirv` with the gpu-physics-engine to get them, older
+  folders just leave these calls returning False): Unity's friction (0.4) and bounciness, density, gravity scale and
+  linear drag per body; Box2D's category / mask / group filter; trigger bodies that pass through circles. Friction
+  between circles is the geometric mean, bounciness the larger. The first call switches the world to this path;
+  worlds that never call it step as before. Joints between bodies (revolute, prismatic, wheel, ...), contact
+  begin/end events, ball spin and polygons are in the C runtime of gpu-physics-engine (`gpuphys.c`) and are **not** in this
+  Python host yet: they run on the CPU there, so a port would be a second solver.
 
 ## Input
 
