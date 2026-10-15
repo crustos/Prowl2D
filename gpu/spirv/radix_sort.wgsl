@@ -53,8 +53,8 @@ var<storage, read_write> keys_b: keys_b_buffer;
 var<storage, read_write> payload_b: payload_b_buffer;
 @group(0) @binding(30) 
 var<uniform> scatter_keys_args: scatter_keys_push;
-var<workgroup> SHARED_GLOBAL_OFFSETS: array<atomic<u32>, 256>;
 var<workgroup> SHARED_BIN_FLAGS: array<atomic<u32>, 2048>;
+var<workgroup> SHARED_GLOBAL_OFFSETS: array<atomic<u32>, 256>;
 var<workgroup> SHARED_BUCKET_COUNTS: array<u32, 256>;
 var<workgroup> SHARED_BUCKET_PREFIX: array<u32, 256>;
 

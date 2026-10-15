@@ -849,6 +849,137 @@
     ],
     "wgsl": "prowl_bodies.wgsl"
   },
+  "prowl_curves": {
+    "file": "prowl_curves.spv",
+    "entry_points": [
+      {
+        "name": "curve_collide",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "previous_positions",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 11,
+            "name": "material",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 15,
+            "name": "curves",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "num_particles",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "num_curves",
+            "offset": 4,
+            "type": "u32"
+          }
+        ],
+        "push_size": 8,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      },
+      {
+        "name": "curve_material",
+        "local_size": [
+          64,
+          1,
+          1
+        ],
+        "buffers": [
+          {
+            "set": 0,
+            "binding": 0,
+            "name": "positions",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 1,
+            "name": "previous_positions",
+            "access": "read_write"
+          },
+          {
+            "set": 0,
+            "binding": 2,
+            "name": "radius",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 11,
+            "name": "material",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 14,
+            "name": "omega",
+            "access": "read"
+          },
+          {
+            "set": 0,
+            "binding": 15,
+            "name": "curves",
+            "access": "read"
+          }
+        ],
+        "push": [
+          {
+            "name": "num_particles",
+            "offset": 0,
+            "type": "u32"
+          },
+          {
+            "name": "num_curves",
+            "offset": 4,
+            "type": "u32"
+          },
+          {
+            "name": "bounce_threshold",
+            "offset": 8,
+            "type": "f32"
+          }
+        ],
+        "push_size": 12,
+        "push_binding": {
+          "set": 0,
+          "binding": 30
+        }
+      }
+    ],
+    "wgsl": "prowl_curves.wgsl"
+  },
   "prowl_material": {
     "file": "prowl_material.spv",
     "entry_points": [
