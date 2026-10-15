@@ -160,6 +160,19 @@ class GpuPhysicsDriver:
             self.actors[sb] = act
         return True
 
+    # ------------------------------------------- Unity-style body settings (Rigidbody2D / Collider2D)
+    def set_material(self, body, friction=0.4, bounciness=0.0, density=1.0, gravity_scale=1.0, drag=0.0):
+        """PhysicsMaterial2D (friction, bounciness) + Rigidbody2D (density, gravityScale, drag) of a GPU body."""
+        return self.world is not None and self.world.set_material(body, friction, bounciness, density, gravity_scale, drag)
+
+    def set_collision_filter(self, body, category=1, mask=0xFFFFFFFF, group=0):
+        """Box2D's categoryBits / maskBits / groupIndex (Unity's layer matrix lives above this)."""
+        return self.world is not None and self.world.set_filter(body, category, mask, group)
+
+    def set_is_trigger(self, body, trigger=True):
+        """Collider2D.isTrigger: the body passes through other circles."""
+        return self.world is not None and self.world.set_sensor(body, trigger)
+
     def blast(self, vp, wx, wy, radius, force):
         return self.world.blast(wx, wy, radius, force) if self.world is not None else 0
 

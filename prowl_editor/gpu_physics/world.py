@@ -20,6 +20,7 @@ import struct
 
 from .kernels import Kernels
 from .bodies import BodiesMixin
+from .material import MaterialMixin
 
 NUM_BLOCKS_PER_WORKGROUP = 45          # the engine's radix-sort constant
 RADIX_WG = 256
@@ -32,7 +33,7 @@ def _ceil_div(a, b):
     return (a + b - 1) // b
 
 
-class GpuWorld(BodiesMixin):
+class GpuWorld(BodiesMixin, MaterialMixin):
     host_sort = None  # None: follow the backend (host sort on "interp" only)
 
     def __init__(self, backend, capacity=4096, world=(64.0, 36.0), gravity=(0.0, -18.0),
@@ -111,6 +112,7 @@ class GpuWorld(BodiesMixin):
         self.tiles = b.alloc(16)
         self.input = b.alloc(4 * 520)
         self._tile_cells = (0, 0)
+        self._init_material(cap)
 
     # ---------------------------------------------------------------- circles
     @property
@@ -129,6 +131,7 @@ class GpuWorld(BodiesMixin):
         self.b.write(self.tags, struct.pack("<I", tag), 4 * i)
         self.b.write(self.groups, struct.pack("<I", group), 4 * i)
         self.owner.append(group)
+        self._mat_add()
         self.max_radius = max(self.max_radius, radius)
         self.n += 1
         return i
@@ -157,6 +160,7 @@ class GpuWorld(BodiesMixin):
     def _swap_remove(self, i):
         last = self.n - 1
         moved = None
+        self._mat_swap_remove(i, last)
         if i != last:
             for buf, w in ((self.positions, 8), (self.previous, 8), (self.radius, 4), (self.tags, 4), (self.groups, 4)):
                 self.b.write(buf, self.b.read(buf, w * last, w), w * i)
@@ -325,16 +329,30 @@ class GpuWorld(BodiesMixin):
             self.b.write(self.input, input.pack())
         for s in self.scripts:
             s.run(self, dt)
-        self._run("integrate_tagged", n,
-                  struct.pack("<7fI", dt, self.gravity[0], self.gravity[1], self.damping, self.sand_damping,
-                              self.world[0], self.world[1], n),
-                  positions=self.positions, previous_positions=self.previous, radius=self.radius, tags=self.tags)
+        mat = self.use_material
+        if mat:
+            if self._m_dirty or self._m_dt != dt:
+                self._upload_material(dt)
+                self._m_dirty, self._m_dt = False, dt
+            self._material_integrate(dt)
+        else:
+            self._run("integrate_tagged", n,
+                      struct.pack("<7fI", dt, self.gravity[0], self.gravity[1], self.damping, self.sand_damping,
+                                  self.world[0], self.world[1], n),
+                      positions=self.positions, previous_positions=self.previous, radius=self.radius,
+                      tags=self.tags)
         self.build_cells(n)
         for _ in range(max(1, self.iterations)):
-            self.solve()
+            if mat:
+                self._material_solve(dt)
+            else:
+                self.solve()
             self.solve_joints()
             self.tile_collide()
-        self.tile_friction()
+        if mat:
+            self._material_tiles(dt)
+        else:
+            self.tile_friction()
         self._run_sensors()
         self.b.flush()
         self.steps += 1
