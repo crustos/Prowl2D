@@ -54,6 +54,31 @@ const [url, engine] = process.argv.slice(2);
     r.dug = diggableBefore - P.state.cells.filter((c) => c && P.level.tiles[c].diggable).length;
     r.cratesAfterBlast = P.state.crates.size;
     await P.step(40);
+    // smooth surfaces: a hill (solid) and a bowl (thin wall) from level.json's curves
+    const sample = (q) => { const pts = []; for (let i = 0; i <= 200; i++) { const t = i / 200, u = 1 - t; pts.push([u * u * q[0] + 2 * u * t * q[2] + t * t * q[4], u * u * q[1] + 2 * u * t * q[3] + t * t * q[5]]); } return pts; };
+    const chain = (c) => c.segments.flatMap(sample);
+    const hillPts = chain(P.level.curves[0]), bowlPts = chain(P.level.curves[1]);
+    const near = (pts, x, y) => Math.min(...pts.map(([px, py]) => Math.hypot(px - x, py - y)));
+    r.curves = P.level.curves.length; r.colliders = P.engineObject.world.curveCount;
+    const known = new Set(P.engineObject.bodies.keys());
+    await P.act('ball', [20.0, H - 1]); await P.act('ball', [2.6, H - 1]);
+    const mine = [...P.engineObject.bodies].filter(([id, k]) => k === 'ball' && !known.has(id)).map(([id]) => id);
+    await P.step(300);
+    const [onHill, inBowl] = mine.map((id) => P.snap.poses.get(id));
+    r.hillBall = [+onHill.x.toFixed(2), +onHill.y.toFixed(2)];
+    r.hillTop = Math.max(...hillPts.map((p) => p[1]));
+    r.hillInside = hillPts.some(([px, py]) => Math.abs(px - onHill.x) < 0.05 && onHill.y < py - 0.2);
+    r.bowlBall = [+inBowl.x.toFixed(2), +inBowl.y.toFixed(2)];
+    r.bowlDist = near(bowlPts, inBowl.x, inBowl.y);
+    r.bowlAbove = bowlPts.some(([px, py]) => Math.abs(px - inBowl.x) < 0.1 && inBowl.y > py);
+    // the curve layer: Windfoil against Canvas 2D
+    const a = P.layer; r.layerMode = a?.mode;
+    const px = (cv) => cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    const da = px(a.canvas), b = await P.rebake('canvas'), db = px(b.canvas);
+    let ink = 0, bad = 0, sum = 0;
+    for (let i = 3; i < da.length; i += 4) { if (da[i] || db[i]) ink++; const d = Math.abs(da[i] - db[i]); sum += d; if (d > 64) bad++; }
+    r.layerInk = ink; r.layerBad = bad; r.layerMean = sum / Math.max(ink, 1);
+    await P.rebake('auto');
     r.png = await P.png();
     return r;
   });
@@ -110,6 +135,11 @@ def main(argv):
         check("balls rest on something", o["balls"] == 2 and all(0.3 < y < 11 for y in o["ballY"]), str(o["ballY"]))
         check("sand is poured and stays inside", o["sandAdded"] > 40 and o["sandLow"] > 0.5, "%d grains, lowest %.2f" % (o["sand"], o["sandLow"]))
         check("a blast digs the diggable tiles", o["dug"] > 0, "%d tiles" % o["dug"])
+        check("the curves reached the engine", o["curves"] == 2 and o["colliders"] == 3, "%d curves, %d segments" % (o["curves"], o["colliders"]))
+        check("a ball dropped on the hill rolls off it", o["hillBall"][1] < o["hillTop"] - 0.8 and not o["hillInside"], str(o["hillBall"]))
+        check("a ball dropped on the bowl rests on it", 0.3 < o["bowlDist"] < 0.7 and o["bowlAbove"], "%s, %.2f from the curve" % (o["bowlBall"], o["bowlDist"]))
+        check("Windfoil draws the curve layer", o["layerMode"] == "windfoil" and o["layerInk"] > 4000, "%s, %d pixels" % (o["layerMode"], o["layerInk"]))
+        check("...and agrees with Canvas 2D", o["layerBad"] < 0.01 * o["layerInk"] and o["layerMean"] < 4, "%d differ by >25%%, mean difference %.2f/255" % (o["layerBad"], o["layerMean"]))
         check("no page errors", not errs, "; ".join(errs[:2]))
         png = base64.b64decode(o["png"].split(",")[1])
         check("the canvas drew something", len(png) > 3000, "%d bytes" % len(png))

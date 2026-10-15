@@ -6,8 +6,8 @@
 
 Writes a folder to serve over http (python3 -m http.server -d Build/GpuWeb):
 
-    index.html, player.js     the player (gpu/web)
-    level.json                the level: cells, the tiles that are used (solid / movable / diggable) and their sprites as PNGs
+    index.html, player.js     the player (gpu/web); curves.js and windfoil.js draw the smooth surfaces (Windfoil: closed-form antialiasing on WebGPU)
+    level.json                the level: cells, the tiles that are used (solid / movable / diggable) and their sprites as PNGs, smooth curves
     gpuphys.js, gpuphys.wasm  the engine on the CPU, in WebAssembly (everything: joints, events, polygons, material)
     gpuphys_webgpu.js, spirv/ the circle pipeline on WebGPU: the same kernels as WGSL (sand and balls by the thousand)
 
@@ -31,7 +31,16 @@ from prowl_editor.model import Project, Sprite, TileDef  # noqa: E402
 
 WEB = os.path.join(ROOT, "gpu", "web")
 SPIRV = os.path.join(ROOT, "gpu", "spirv")
-PLAYER_FILES = ["player.html", "player.js", "gpuphys.js", "gpuphys.wasm", "gpuphys_webgpu.js"]
+PLAYER_FILES = ["player.html", "player.js", "curves.js", "windfoil.js", "gpuphys.js", "gpuphys.wasm", "gpuphys_webgpu.js"]
+
+
+# Smooth surfaces for --demo (tile units, y up; see gpu/web/curves.js for the format): a grassy hill on the ground (right) and a thin bowl in the air (left).
+DEMO_CURVES = [
+    {"kind": "solid", "friction": 0.4, "bounciness": 0.0, "fill": "#58a846", "edge": "#2f6b2a", "thickness": 0.14,
+     "segments": [[15.5, 2.0, 17.0, 5.8, 19.0, 4.9], [19.0, 4.9, 21.0, 4.0, 22.5, 2.0]]},
+    {"kind": "wall", "friction": 0.3, "bounciness": 0.2, "fill": "#c9a0dc", "thickness": 0.14,
+     "segments": [[0.6, 9.6, 2.6, 5.8, 4.6, 9.2]]},
+]
 
 
 def png(width, height, rgba):
@@ -71,13 +80,16 @@ NNNNNNNN
     grass = "\U0001f7e9"
     p.tiles[grass].diggable = True
     lv = p.levels[0]
+    for x in range(14, 24):                                      # room for the hill on the right: no platform above it
+        for y in (6, 7):
+            lv.set(x, y, "")
     for x, y in ((5, 2), (6, 2), (6, 1), (14, 1), (15, 1), (15, 0), (16, 1), (20, 0)):
         if lv.get(x, y) == "" or lv.get(x, y) == p.empty:
             lv.set(x, y, crate)
     return p, lv
 
 
-def export_level(project, level):
+def export_level(project, level, curves=()):
     used = {}
     for cell in level.cells:
         if cell and cell not in used and cell in project.tiles:
@@ -93,7 +105,7 @@ def export_level(project, level):
         tiles[emoji] = entry
     return {"name": level.name, "width": level.width, "height": level.height,
             "cells": [c if c in tiles else "" for c in level.cells],            # row by row from the top
-            "tiles": tiles}
+            "tiles": tiles, "curves": list(curves)}
 
 
 def main(argv):
@@ -101,6 +113,7 @@ def main(argv):
     ap.add_argument("project", nargs="?", help="a project file (.json)")
     ap.add_argument("--demo", action="store_true", help="the editor's demo project, with crates")
     ap.add_argument("--level", help="the level's name (default: the first)")
+    ap.add_argument("--curves", help="a JSON file with a list of smooth Bezier surfaces for the level (format: gpu/web/curves.js)")
     ap.add_argument("--out", default=os.path.join(ROOT, "Build", "GpuWeb"))
     a = ap.parse_args(argv)
     if a.demo:
@@ -132,9 +145,18 @@ def main(argv):
                                                       "buffers": [{"binding": b["binding"], "name": b["name"]} for b in e["buffers"]]} for e in v["entry_points"]]}
                 if k != "_meta" else v) for k, v in manifest.items()}
     json.dump(slim, open(os.path.join(spirv, "manifest.json"), "w"))
-    data = export_level(project, level)
+    curves = list(DEMO_CURVES) if a.demo else []
+    if a.curves:
+        with open(a.curves) as fh:
+            loaded = json.load(fh)
+        curves += loaded["curves"] if isinstance(loaded, dict) else loaded
+    for i, c in enumerate(curves):
+        segs = c.get("segments") or []
+        if c.get("kind") not in ("solid", "wall") or not segs or any(len(q) != 6 for q in segs):
+            sys.exit("export_gpu_web: curve %d needs kind 'solid' or 'wall' and segments of 6 numbers [x0,y0,x1,y1,x2,y2]" % i)
+    data = export_level(project, level, curves)
     json.dump(data, open(os.path.join(a.out, "level.json"), "w"), ensure_ascii=False)
-    print("wrote %s: level %r %dx%d, %d tile kinds, %d files" % (a.out, level.name, level.width, level.height, len(data["tiles"]), len(os.listdir(a.out))))
+    print("wrote %s: level %r %dx%d, %d tile kinds, %d curves, %d files" % (a.out, level.name, level.width, level.height, len(data["tiles"]), len(curves), len(os.listdir(a.out))))
     return 0
 
 
