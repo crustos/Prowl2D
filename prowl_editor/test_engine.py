@@ -10,6 +10,7 @@ import unittest
 from .demo import make_demo_project
 from .slime_demo import SlimeDriver, make_slime_project
 from .slime_rust import make_slime_rust_project
+from .slime_goose import make_slime_goose_project
 from . import scriptbuild
 from .engine import (BODY_DYNAMIC, BODY_STATIC, BTN_LEFT, EV_MOUSE_DOWN, EV_WHEEL, KEY_HOME, Engine, EngineError, Viewport, find_library, floats_ptr)
 
@@ -387,6 +388,8 @@ class SlimeJumpInRust(unittest.TestCase):
     """SlimeJump (slime_rust.py): its game logic is the Rust scripts of Samples/SlimeJumpRust (walking, climbing, the blaster and the lasso, turrets and arrows, crumbly platforms,
     checkpoints, gems, and a bot), built into the engine by the editor's own Build and played in the viewport. The level is 84 x 16 cells; the ground is at y = 4."""
     SPAWN = (3.5, 4.4)
+    make_project = staticmethod(make_slime_rust_project)
+    LANGUAGE = "Rust"
 
     @classmethod
     def setUpClass(cls):
@@ -394,10 +397,10 @@ class SlimeJumpInRust(unittest.TestCase):
             raise unittest.SkipTest("libprowl2d.so is not built (python3 tools/prowl2d_so.py)")
         import tempfile
         cls.work = tempfile.TemporaryDirectory()
-        cls.project = make_slime_rust_project()
+        cls.project = cls.make_project()
         cls.result = scriptbuild.Builder(cls.work.name).build(cls.project)
         if not cls.result.ok:
-            raise AssertionError("the Rust scripts did not build: " + "; ".join(str(d) for d in cls.result.diagnostics))
+            raise AssertionError("the %s scripts did not build: " % cls.LANGUAGE + "; ".join(str(d) for d in cls.result.diagnostics))
         try:
             cls.engine = Engine(cls.result.lib)
             cls.engine.start(W, H)
@@ -672,3 +675,10 @@ class SlimeJumpInRust(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SlimeJumpInGoose(SlimeJumpInRust):
+    """SlimeJump with its game logic in Goose (slime_goose.py, the files of Samples/SlimeJumpGoose): the same level and the same scripts, ported, so every test of the Rust version
+    must pass unchanged (the Goose scripts are built into the engine by the editor's own Build, which lowers them with tools/goose2c.py)."""
+    make_project = staticmethod(make_slime_goose_project)
+    LANGUAGE = "Goose"

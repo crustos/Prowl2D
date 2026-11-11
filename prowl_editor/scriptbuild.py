@@ -10,6 +10,7 @@ cannot build yet, so that nothing is left out unmentioned. What it says, and wha
 
     File.ext(line,col): error CODE: message         the C# translator's, and the tool's own (GEN0001 a script that is wrong, PROWL0001 a language not built yet)
     cpprust: File.cpp:LINE: message                 C++ (tools/cpprust.py); `cpprust: message` alone has no place
+    File.goose:LINE: error: message                 Goose (tools/goose2c.py: what the subset does not have, or a type that does not fit)
     shivyc: error: crust: File.rs: line N: message  Rust's parser (crust, in shivyc), and `File.rs:LINE:COL: error: message` from the code it lowers
     SYNTAX ERROR in File.py: message (File.py, line N)   RPython (tools/py2c.py)
     File.c:LINE:COL: error: message                 the C compiler, on the C a front end wrote: that file is not the script, so the line is not its line and there is no place
@@ -34,6 +35,7 @@ _CPPRUST_PLAIN = re.compile(r"^cpprust:\s+(?P<msg>\S.*)$")
 _CRUST = re.compile(r"^shivyc:\s+error:\s+crust:\s+(?P<file>\S+?):\s+line\s+(?P<line>\d+):\s*(?P<msg>.*)$")
 _SHIVYC_PLAIN = re.compile(r"^shivyc:\s+(?P<sev>error|warning):\s+(?P<msg>\S.*)$")
 _PLACED = re.compile(r"^(?P<file>[^\s:()]+):(?P<line>\d+):(?P<col>\d+):\s*(?P<sev>error|warning):\s*(?P<msg>.*)$")
+_GOOSE = re.compile(r"^(?P<file>\S+?\.goose):(?P<line>\d+):\s*error:\s*(?P<msg>.*)$")
 _PY2C = re.compile(r"^\s*SYNTAX ERROR in (?P<file>\S+?):\s*(?P<msg>.*?)\s*\((?P<file2>[^,()]+),\s*line\s+(?P<line>\d+)\)\s*$")
 _DIAG = re.compile(r"^(?P<file>[^\s(][^()]*?)\((?P<line>\d+),(?P<col>\d+)\):\s*(?P<sev>error|warning)\s*(?P<code>\w+)?:?\s*(?P<msg>.*)$")
 
@@ -71,6 +73,10 @@ def parse_diagnostics(text):
             out.append(Diagnostic(script_of(base) or base, int(m.group("line")), int(m.group("col")), m.group("sev"), m.group("code") or "", m.group("msg")))
             continue
         m = _CPPRUST.match(line) or _CRUST.match(line) or _PY2C.match(line)
+        if m and script_of(m.group("file")):
+            out.append(Diagnostic(script_of(m.group("file")), int(m.group("line")), 1, "error", "", m.group("msg")))
+            continue
+        m = _GOOSE.match(line)
         if m and script_of(m.group("file")):
             out.append(Diagnostic(script_of(m.group("file")), int(m.group("line")), 1, "error", "", m.group("msg")))
             continue

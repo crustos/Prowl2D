@@ -1516,15 +1516,15 @@ class ScriptLanguages(unittest.TestCase):
     """A script is a file in one language (languages.py): its template, which classes in it are scripts, what the project file says, and what the build does with it."""
 
     def test_the_languages_and_their_files(self):
-        self.assertEqual(list(languages.LANGUAGES), ["csharp", "cpp", "rust", "rpython"])
-        self.assertEqual([l.ext for l in languages.LANGUAGES.values()], [".cs", ".cpp", ".rs", ".py"])
-        self.assertEqual([l.name for l in languages.LANGUAGES.values()], ["C#", "C++", "Rust", "RPython"])
+        self.assertEqual(list(languages.LANGUAGES), ["csharp", "cpp", "rust", "rpython", "goose"])
+        self.assertEqual([l.ext for l in languages.LANGUAGES.values()], [".cs", ".cpp", ".rs", ".py", ".goose"])
+        self.assertEqual([l.name for l in languages.LANGUAGES.values()], ["C#", "C++", "Rust", "RPython", "Goose"])
         self.assertEqual(languages.DEFAULT, "csharp")
         self.assertEqual(languages.by_extension("Spinner.RS").id, "rust")
         self.assertIsNone(languages.by_extension("Spinner.txt"))
         with self.assertRaises(languages.UnknownLanguage) as e:
             languages.get("cobol")
-        self.assertIn("csharp, cpp, rust, rpython", str(e.exception))
+        self.assertIn("csharp, cpp, rust, rpython, goose", str(e.exception))
         with self.assertRaises(ValueError):                                          # (UnknownLanguage is a ValueError)
             ScriptFile("A", "", "cobol")
 
@@ -1536,11 +1536,13 @@ class ScriptLanguages(unittest.TestCase):
             self.assertNotIn("%(name)s", text, lang.id)
 
     def test_a_class_is_a_script_only_with_the_marker_and_not_inside_a_comment(self):
-        plain = {"csharp": "class A { }", "cpp": "class A { };", "rust": "struct A { node: i32 }", "rpython": "class A(object):\n    pass\n"}
+        plain = {"csharp": "class A { }", "cpp": "class A { };", "rust": "struct A { node: i32 }", "rpython": "class A(object):\n    pass\n",
+                 "goose": "struct A { node: i32 }"}
         commented = {"csharp": "// [Script, MaxInstances(4)]\nclass A { }",
                      "cpp": "// PROWL_SCRIPT(4)\nclass A { };\n/* PROWL_SCRIPT(4)\nclass B { }; */",
                      "rust": "// #[script(max_instances = 4)]\nstruct A { node: i32 }\n/* #[script]\nstruct B {} */",
-                     "rpython": "# @script(max_instances=4)\nclass A(object):\n    pass\n"}
+                     "rpython": "# @script(max_instances=4)\nclass A(object):\n    pass\n",
+                     "goose": "// // script(max_instances = 4)\nstruct A { node: i32 }\n/* // script(max_instances = 4)\nstruct B { node: i32 } */"}
         for lang in languages.LANGUAGES.values():
             self.assertEqual(lang.classes(plain[lang.id]), [], lang.id)
             self.assertEqual(lang.classes(commented[lang.id]), [], lang.id)
@@ -1562,11 +1564,11 @@ class ScriptLanguages(unittest.TestCase):
         for lang in languages.LANGUAGES.values():
             p.scripts.append(ScriptFile("S_" + lang.id, lang.new_text("S_" + lang.id), lang.id))
         data = p.to_json()
-        self.assertEqual([item.get("language") for item in data["scripts"]], [None, "cpp", "rust", "rpython"])
+        self.assertEqual([item.get("language") for item in data["scripts"]], [None, "cpp", "rust", "rpython", "goose"])
         self.assertEqual(data["version"], 2)
         back = Project.from_json(json.loads(json.dumps(data)))
         self.assertEqual([(f.name, f.language, f.text) for f in back.scripts], [(f.name, f.language, f.text) for f in p.scripts])
-        self.assertEqual(back.script_classes(), {"S_csharp": "S_csharp", "S_cpp": "S_cpp", "S_rust": "S_rust", "S_rpython": "S_rpython"})
+        self.assertEqual(back.script_classes(), {"S_csharp": "S_csharp", "S_cpp": "S_cpp", "S_rust": "S_rust", "S_rpython": "S_rpython", "S_goose": "S_goose"})
 
     def test_a_project_of_csharp_scripts_is_still_version_1_and_an_old_file_loads_as_csharp(self):
         p = Project("old")
@@ -1597,7 +1599,7 @@ class ScriptLanguages(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             b = scriptbuild.Builder(d)
             b.prepare(p)
-            self.assertEqual(sorted(os.listdir(os.path.join(d, "src"))), ["S_cpp.cpp", "S_csharp.cs", "S_rpython.py", "S_rust.rs"])
+            self.assertEqual(sorted(os.listdir(os.path.join(d, "src"))), ["S_cpp.cpp", "S_csharp.cs", "S_goose.goose", "S_rpython.py", "S_rust.rs"])
             with open(os.path.join(d, "src", "S_rust.rs"), encoding="utf-8") as f:
                 self.assertEqual(f.read(), languages.get("rust").new_text("S_rust"))
 
@@ -1820,7 +1822,7 @@ class ScriptScan(unittest.TestCase):
                 continue
             text = lang.new_text("Spinner")
             (sc,) = self.scan("Spinner" + lang.ext, text)
-            marker = {"cpp": "PROWL_SCRIPT(16)", "rust": "#[script(max_instances = 16)]", "rpython": "@script(max_instances=16)"}[lang.id]
+            marker = {"cpp": "PROWL_SCRIPT(16)", "rust": "#[script(max_instances = 16)]", "rpython": "@script(max_instances=16)", "goose": "// script(max_instances = 16)"}[lang.id]
             self.assertEqual((sc["name"], sc["language"], sc["capacity"], sc["callbacks"]), ("Spinner", lang.id, 16, ["Update"]), lang.id)
             self.assertEqual(text.split("\n")[sc["line"] - 1], marker, lang.id)
 
@@ -1829,7 +1831,9 @@ class ScriptScan(unittest.TestCase):
                    "rust": "#[derive(Clone)]\n#[script(max_instances = 4)]\n#[allow(dead_code)]\npub struct S { node: i32 }\n#[script(max_instances = 2)]\nstruct T { node: i32 }\n"
                            "struct Plain { node: i32 }\n// #[script(max_instances = 1)]\nstruct Hidden { }\n",
                    "rpython": "@script(max_instances=4)\nclass S(object):\n    def __init__(self):\n        self.node: int = 0\n\n@script(2)\n@other(1)\nclass T(S):\n    def __init__(self):\n        self.node: int = 0\n\nclass Plain(object):\n    pass\n"
-                              "# @script(max_instances=1)\nclass Hidden(object):\n    pass\n"}
+                              "# @script(max_instances=1)\nclass Hidden(object):\n    pass\n",
+                   "goose": "// script(max_instances = 4)\nstruct S { node: i32 }\n\n// script(max_instances = 2)\n// a note between\n\nroot struct T { node: i32 }\n"
+                            "struct Plain { node: i32 }\n// // script(max_instances = 1)\nstruct Hidden { node: i32 }\n"}
         for lang_id, text in samples.items():
             lang = languages.get(lang_id)
             built = [sc["name"] for sc in self.scan("Many" + lang.ext, text)]
@@ -1846,9 +1850,11 @@ class ScriptScan(unittest.TestCase):
         (a,) = self.scan("A.cpp", "PROWL_SCRIPT(1)\nclass A {\npublic:\n    int node;\n%s};\n" % cpp)
         (b,) = self.scan("B.rs", "#[script(max_instances = 1)]\nstruct B { node: i32 }\nimpl B {\n%s}\n" % rust)
         (c,) = self.scan("C.py", "@script(max_instances=1)\nclass C(object):\n    def __init__(self):\n        self.node: int = 0\n%s" % rpy)
-        for sc in (a, b, c):
+        goose = "".join("fn %s(s: D&%s) { }\n" % (SL.SNAKE[c], "" if c in SL.LIFECYCLE else ", other: i32") for c in SL.CALLBACKS)
+        (d,) = self.scan("D.goose", "// script(max_instances = 1)\nstruct D { node: i32 }\n%s" % goose)
+        for sc in (a, b, c, d):
             self.assertEqual(sc["callbacks"], SL.CALLBACKS, sc["language"])
-        for lang_id in ("cpp", "rust", "rpython"):                                      # the templates name them all, in the same spelling
+        for lang_id in ("cpp", "rust", "rpython", "goose"):                                      # the templates name them all, in the same spelling
             text = languages.get(lang_id).new_text("Z")
             for cb in SL.CALLBACKS:
                 self.assertIn(SL.spelling(lang_id, cb), text, (lang_id, cb))
@@ -1918,8 +1924,8 @@ class ScriptScan(unittest.TestCase):
                                                      "B.rs(%d,1): warning PROWL0001: Rust scripts are not built yet: B will not run" % b_line])
 
     def test_every_language_is_built_and_each_has_a_builder(self):
-        self.assertEqual(SL.BUILT, ("csharp", "cpp", "rust", "rpython"))
-        self.assertEqual(sorted(SN.BUILDERS), ["cpp", "rpython", "rust"])
+        self.assertEqual(SL.BUILT, ("csharp", "cpp", "rust", "rpython", "goose"))
+        self.assertEqual(sorted(SN.BUILDERS), ["cpp", "goose", "rpython", "rust"])
         self.write("A.cpp", languages.get("cpp").new_text("A"))
         scripts, _ = SL.scan_folder(self.dir.name)
         self.assertEqual(SL.unbuilt_notes(scripts), [])

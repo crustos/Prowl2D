@@ -10,6 +10,7 @@ A script is one file in one language. What the editor needs to know about a lang
                     cpp       PROWL_SCRIPT(16) class Name                                 (a macro that expands to nothing: cpprust never sees it)
                     rust      #[script(max_instances = 16)] struct Name                   (Crust skips item attributes)
                     rpython   @script(max_instances=16) class Name                        (a decorator; from prowl import script)
+                    goose     // script(max_instances = 16)  on the line above  struct Name  (a comment: Goose has no attributes)
 
                   Each marker was run through its front end (tools/cpprust.py, shivyc/crust.py, tools/py2c.py) to see that it is accepted and changes nothing.
   the syntax      keywords, types, comments and a few more patterns, as data: gui_scripts.py colours a file from them
@@ -117,6 +118,34 @@ impl %(name)s {
 }
 """
 
+# ---- Goose (the Crust subset; tools/goose2c.py lowers it to C)
+
+GOOSE_KEYWORDS = ("as block break const continue defer else enum export extern false fn for guard if import in inline let loop match namespace null return root self struct "
+                  "true type var while").split()
+GOOSE_TYPES = "bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 print str format assert abort".split()
+
+# A Goose script has no attribute to carry its marker, so the marker is a comment on the line above its struct: `// script(max_instances = 16)`. (Goose itself ignores it.)
+GOOSE_CLASS = re.compile(r"^[ \t]*//[ \t]*script\b[^\n]*\n(?:[ \t]*(?://[^\n]*)?\n)*[ \t]*(?:root[ \t]+)?struct[ \t]+(\w+)", re.M)
+
+GOOSE_TEMPLATE = """// A script: Goose (the Crust subset) that runs on a node while the level plays.
+// Keep to the subset: Build says where a line does not fit.
+// The comment below marks the struct as a script and says how many can exist at once. `node` is the handle of the node the script runs on; the engine's calls take it.
+// Callbacks, all optional, are functions whose first parameter is the struct by reference: start, update, fixed_update, late_update, on_enable, on_disable,
+//   on_collision_begin_2d(s: Name&, other: i32), on_collision_end_2d (hit_x(), hit_ny() ... say where), on_trigger_enter_2d(s: Name&, other: i32), on_trigger_stay_2d, on_trigger_exit_2d.
+// Engine: set_pos, node_x, node_y, add_body, set_velocity, impulse ...  Input: key_down(65), mouse_down(0), mouse_world_x(), mouse_world_y().
+
+// script(max_instances = 16)
+struct %(name)s {
+    node: i32,
+    time: f32,
+}
+
+fn update(s: %(name)s&) {
+    s.time += 1.0 / 60.0;
+    // set_pos(s.node, node_x(s.node) + 0.02, node_y(s.node));
+}
+"""
+
 # ---- RPython (the Crust Python subset)
 
 RPYTHON_KEYWORDS = ("and as assert break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while "
@@ -154,6 +183,11 @@ def _strip_c_comments(text):
 
 def _strip_c_line_comments(text):
     return re.sub(r"//[^\n]*", "", text)
+
+
+def _strip_goose_comments(text):
+    """`text` without /* */ comments. The // lines stay: a Goose script's marker is one (`// script(max_instances = 16)`), and GOOSE_CLASS looks for it with only comments between it and its struct."""
+    return re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
 
 
 def _strip_hash_comments(text):
@@ -194,12 +228,15 @@ RUST = Language("rust", "Rust", ".rs", RUST_TEMPLATE, RUST_CLASS, _strip_c_comme
 RPYTHON = Language("rpython", "RPython", ".py", RPYTHON_TEMPLATE, RPYTHON_CLASS, _strip_hash_comments, RPYTHON_KEYWORDS, RPYTHON_TYPES, "#", block=('"""', '"""'),
                    block_is_string=True, extra=[(r"^\s*@\w+", "#dcdcaa")], number=r"\b\d+(\.\d+)?\b", indent_after=":")
 
+GOOSE = Language("goose", "Goose", ".goose", GOOSE_TEMPLATE, GOOSE_CLASS, _strip_goose_comments, GOOSE_KEYWORDS, GOOSE_TYPES, "//", block=("/*", "*/"),
+                 extra=[(r"^\s*//\s*script\b[^\n]*", "#dcdcaa")], number=r"\b\d[\d_]*(\.\d+)?(f32|f64|[iu](8|16|32|64))?\b")
+
 DEFAULT = "csharp"
-LANGUAGES = {l.id: l for l in (CSHARP, CPP, RUST, RPYTHON)}      # in the order the menus list them
+LANGUAGES = {l.id: l for l in (CSHARP, CPP, RUST, RPYTHON, GOOSE)}      # in the order the menus list them
 
 
 def get(id):
-    """The Language called `id` ("csharp", "cpp", "rust", "rpython")."""
+    """The Language called `id` ("csharp", "cpp", "rust", "rpython", "goose")."""
     try:
         return LANGUAGES[id]
     except (KeyError, TypeError):
