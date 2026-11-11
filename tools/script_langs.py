@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """script_langs.py -- the script languages beside C#, as the build sees them (the editor's own table of them is prowl_editor/languages.py).
 
-A project's scripts are files in a folder; the file's extension says what language it is (.cs C#, .cpp C++, .rs Rust, .py RPython). tools/prowl2d_so.py --scripts DIR
+A project's scripts are files in a folder; the file's extension says what language it is (.cs C#, .cpp C++, .rs Rust, .py RPython, .goose Goose). tools/prowl2d_so.py --scripts DIR
 builds the C# ones into the engine with CC#, and for every other language asks this module what scripts the files hold:
 
     scan_file(path, language)   the script classes of one file, as dicts: name, language, capacity, callbacks (canonical C# spellings: Update, OnTriggerEnter2D ...), line, where
@@ -31,11 +31,12 @@ import gen_scripts   # noqa: E402
 
 GenError = gen_scripts.GenError
 
-EXTENSIONS = {".cs": "csharp", ".cpp": "cpp", ".rs": "rust", ".py": "rpython"}
-NAMES = {"csharp": "C#", "cpp": "C++", "rust": "Rust", "rpython": "RPython"}
-BUILT = ("csharp", "cpp", "rust", "rpython")                     # the languages the build turns into engine code (one not in it is scanned, and said not to be built yet); tools/script_native.py builds the others
+EXTENSIONS = {".cs": "csharp", ".cpp": "cpp", ".rs": "rust", ".py": "rpython", ".goose": "goose"}
+NAMES = {"csharp": "C#", "cpp": "C++", "rust": "Rust", "rpython": "RPython", "goose": "Goose"}
+BUILT = ("csharp", "cpp", "rust", "rpython", "goose")                     # the languages the build turns into engine code (one not in it is scanned, and said not to be built yet); tools/script_native.py builds the others
 
-CALLBACKS = [c[0] for c in gen_scripts.CALLBACKS]
+UNITY_ALIASES = ("OnCollisionEnter2D", "OnCollisionExit2D")        # Unity's spellings of OnCollisionBegin2D / End2D, which gen_scripts maps for C#; the other languages say Begin / End
+CALLBACKS = [c[0] for c in gen_scripts.CALLBACKS if c[0] not in UNITY_ALIASES]
 LIFECYCLE = ["OnEnable", "OnDisable", "Start", "FixedUpdate", "Update", "LateUpdate"]       # the callbacks that take nothing
 SNAKE = {"OnEnable": "on_enable", "OnDisable": "on_disable", "Start": "start", "FixedUpdate": "fixed_update", "Update": "update", "LateUpdate": "late_update",
          "OnCollisionBegin2D": "on_collision_begin_2d", "OnCollisionEnd2D": "on_collision_end_2d", "OnTriggerEnter2D": "on_trigger_enter_2d",
@@ -45,7 +46,7 @@ assert sorted(SNAKE) == sorted(CALLBACKS)
 
 def spelling(language, canonical):
     """How `language` spells the callback the C# engine calls `canonical`."""
-    return SNAKE[canonical] if language in ("rust", "rpython") else canonical
+    return SNAKE[canonical] if language in ("rust", "rpython", "goose") else canonical
 
 
 def language_of(path):
@@ -242,11 +243,48 @@ def _scan_rpython(path, raw):
     return scripts
 
 
-SCANNERS = {"cpp": _scan_cpp, "rust": _scan_rust, "rpython": _scan_rpython}
+# ---- Goose
+
+def _scan_goose(path, raw):
+    """A Goose script is a struct with the marker `// script(max_instances = N)` on the line above it (a comment: Goose has no attributes), and its callbacks are functions
+    `fn update(s: Name&)` whose first parameter is the struct by reference (the second, for a collision or trigger, is the other node's handle: `other: i32`)."""
+    text = gen_scripts.strip_comments(raw)
+    top = _top_level(text)
+    scripts = []
+    for m in re.finditer(r"(?m)^[ \t]*//[ \t]*script\b([^\n]*)$", raw):
+        where = "%s:%d" % (path, _line_of(raw, m.start()))
+        u = re.compile(r"[ \t]*//[^\n]*\n(?:[ \t]*(?://[^\n]*)?\n)*[ \t]*(?:root[ \t]+)?struct[ \t]+(\w+)").match(raw, m.start())
+        if not u:
+            raise GenError("%s: `// script(max_instances = N)` must be on the line above a struct" % where)
+        name = u.group(1)
+        cap = re.fullmatch(r"\s*\(\s*max_instances\s*=\s*([^,)\s]+)\s*\)\s*", m.group(1))
+        capacity = _capacity(cap.group(1) if cap else None, name, where, "// script(max_instances = N)")
+        has = set()
+        for cb in CALLBACKS:
+            for d in re.finditer(r"\bfn\s+%s\s*\(([^)]*)\)" % SNAKE[cb], top):
+                params = [p.strip() for p in d.group(1).split(",") if p.strip()]
+                if not params or not re.fullmatch(r"\w+\s*:\s*%s\b.*" % re.escape(name), params[0]):
+                    continue                                                      # (another type's function of that name: Goose overloads)
+                at = "%s:%d" % (path, _line_of(text, d.start()))
+                if not re.fullmatch(r"\w+\s*:\s*%s\s*&" % re.escape(name), params[0]):
+                    raise GenError("%s: script %s: %s must take the struct by reference, `fn %s(s: %s&)`, or it would change a copy" % (at, name, SNAKE[cb], SNAKE[cb], name))
+                if cb in LIFECYCLE and len(params) != 1:
+                    raise GenError("%s: script %s: %s takes no parameters besides `s: %s&`" % (at, name, SNAKE[cb], name))
+                if cb not in LIFECYCLE and (len(params) != 2 or not re.fullmatch(r"\w+\s*:\s*i32", params[1])):
+                    raise GenError("%s: script %s: %s takes the other node's handle: `fn %s(s: %s&, other: i32)`" % (at, name, SNAKE[cb], SNAKE[cb], name))
+                has.add(cb)
+        sb = re.compile(r"\bstruct\s+%s\s*\{" % re.escape(name)).search(text)
+        if sb and not re.search(r"\bnode\s*:\s*i32\b", gen_scripts.body_of(text, sb.end() - 1)[0]):
+            raise GenError("%s: script %s needs a field `node: i32` (the engine sets it to the node's handle)" % (where, name))
+        scripts.append(dict(name=name, language="goose", capacity=capacity, callbacks=_which(has), line=_line_of(raw, m.start()), where=where))
+    return scripts
+
+
+SCANNERS = {"cpp": _scan_cpp, "rust": _scan_rust, "rpython": _scan_rpython, "goose": _scan_goose}
 
 
 def scan_file(path, language=None):
-    """The script classes of one file in C++, Rust or RPython (the language, if not given, from the extension), or GenError("FILE:LINE: message")."""
+    """The script classes of one file in C++, Rust, RPython or Goose (the language, if not given, from the extension), or GenError("FILE:LINE: message")."""
     language = language or language_of(path)
     if language not in SCANNERS:
         raise GenError("%s: no scanner for %s files" % (path, NAMES.get(language, language)))

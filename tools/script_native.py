@@ -3,7 +3,7 @@
 
 A script of another language reaches the C# engine through a thin proxy, so that the scene's call stream (Scripts.g.cs, tools/ccsharp/gen_scripts.py) needs no change:
 
-    Name.cpp / .rs / .py   the script, as the person wrote it (plus glue appended to a COPY, so that an error's file and line are the script's own)
+    Name.cpp / .rs / .py / .goose   the script, as the person wrote it (plus glue appended to a COPY, so that an error's file and line are the script's own)
     Name.proxy.cs          a generated C# script `Name` with the same [MaxInstances(N)] and one method per callback the script has; each calls into the native glue with the
                            script's pool slot and its node's handle (an int, the one the engine's p2d_* functions take)
     P2DNative.c.cs         the bindings (C flavor, tools/ccsharp/gen_pb2.py's convention) that name the glue functions for the C# above
@@ -251,6 +251,53 @@ def build_rust(s, src_path, native_dir, work, cc, api, ids=None):
     return _compile(s, c_path, work, cc)
 
 
+# ---- Goose
+
+GOOSE_TYPES = {"int": "i32", "float": "f32"}
+
+
+def goose_prelude(api, ids=None):
+    """The engine's calls for a Goose script (snake_case: set_pos, node_x ...): an `extern fn` for each p2d_* function (plain scalars: the C shape Goose's interop allows), and the
+    collision numbers, appended to the script."""
+    L = ["", "// ---- the engine (tools/script_native.py) ----", "var p2d_hit: f32[5] = [0.0; 5];"]
+    L += ["let %s: i32 = %d;" % (id_name(n), i) for n, i in sorted((ids or {}).items(), key=lambda kv: kv[1])]
+    for ret, name, plist in api:
+        if name in HOST_ONLY:
+            continue
+        sig = ", ".join("%s: %s" % (n, GOOSE_TYPES[t]) for t, n in plist)
+        L.append("extern fn %s(%s)%s = \"p2d_%s\";" % (_snake(name), sig, "" if ret == "void" else " -> " + GOOSE_TYPES[ret], _snake(name)))
+    for i, nm in enumerate(["hit_x", "hit_y", "hit_nx", "hit_ny", "hit_impulse"]):
+        L.append("fn %s() -> f32 { return p2d_hit[%d]; }" % (nm, i))
+    return "\n".join(L) + "\n"
+
+
+def goose_glue(s):
+    """The glue appended to a Goose script: the pool of its instances (a fixed array of its capacity: a recycled slot is set back to a new struct), and an `export fn` per callback
+    that the C# proxy calls with the pool slot and the node's handle."""
+    n, cap = s["name"], s["capacity"]
+    L = ["", "// ---- glue (tools/script_native.py) ----", "var p2d_pool_%s: %s[%d] = [%s { .. }; %d];" % (n, n, cap, n, cap),
+         "export fn p2dn_%s_Reset(slot: i32) { p2d_pool_%s[slot] = %s { .. }; }" % (n, n, n)]
+    for cb in s["callbacks"]:
+        ps = [("i32", "slot"), ("i32", "node")] + [("i32" if t == "int" else "f32", nm) for t, nm in _params(cb)]
+        body = ["p2d_pool_%s[slot].node = node;" % n]
+        if cb in HIT:
+            body += ["p2d_hit[%d] = %s;" % (i, nm) for i, nm in enumerate(["x", "y", "nx", "ny", "impulse"])]
+        body.append("%s(p2d_pool_%s[slot]%s);" % (script_langs.spelling("goose", cb), n, ", other" if cb in WITH_OTHER else ""))
+        L.append("export fn p2dn_%s_%s(%s) { %s }" % (n, cb, ", ".join("%s: %s" % (nm, t) for t, nm in ps), " ".join(body)))
+    return "\n".join(L) + "\n"
+
+
+def build_goose(s, src_path, native_dir, work, cc, api, ids=None):
+    """Lowers one Goose script with goose2c (--lib: no C main, the exports are the entry points) and compiles the C: returns the object file. The script is copied into
+    `native_dir` with the engine's calls and the glue after it, so that the lines of an error are the script's own."""
+    path = _copy_with(src_path, native_dir, goose_prelude(api, ids) + goose_glue(s))
+    c_path = path[:-len(".goose")] + ".c"
+    code, out = _run([sys.executable, os.path.join(crust_home(), "tools", "goose2c.py"), "--lib", path, "-o", c_path])
+    if code != 0 or not os.path.exists(c_path):
+        raise Failed(out.strip() or "goose2c failed")
+    return _compile(s, c_path, work, cc)
+
+
 # ---- RPython
 
 def rpython_prelude(api, ids=None):
@@ -320,7 +367,7 @@ def build_rpython(s, src_path, native_dir, work, cc, api, ids=None):
     return objs + ([rt] if rt else [])
 
 
-BUILDERS = {"cpp": build_cpp, "rust": build_rust, "rpython": build_rpython}
+BUILDERS = {"cpp": build_cpp, "rust": build_rust, "rpython": build_rpython, "goose": build_goose}
 
 
 def built(language):
