@@ -1,5 +1,9 @@
 # SlimeJumpGoose
 
+![The bot playing SlimeJumpGoose](slimejump.gif)
+
+*The bot playing the level in about 15 seconds, its scripts all Goose: it climbs the vines, swings across the gap on the lasso and reaches the goal.*
+
 [SlimeJump](../SlimeJump) with its game logic in **Goose** — the Crust subset, lowered to C by `tools/goose2c.py` and linked into the engine library; no Goose compiler, no C++ compiler.
 It is [SlimeJumpRust](../SlimeJumpRust) ported script for script: the same level, sprites, controls and scripts (`prowl_editor/slime_goose.py`):
 
@@ -45,3 +49,8 @@ The Goose is lowered to C with `goose2c --lib`, compiled with the rest, and link
 and that **the Goose scripts do what the Rust ones do**: both builds run under a driver that moves the nodes, presses keys and changes the globals at random, against a stub engine that logs every call it gets,
 and the two logs must agree (a float to within its last digit). `SlimeJumpInGoose` in `prowl_editor/test_engine.py` builds the scripts with the editor's own Build and plays them in the viewport,
 running every test of `SlimeJumpInRust` (walking and jumping, spikes, pit and worms, gems and checkpoints, climbing, the blaster, the lasso, turret arrows, crumbly platforms, and the bot playing the whole level to the goal).
+
+The GIF is recorded from the viewport (the same engine library, bot on, camera following the slime):
+
+    python3 build.py so
+    xvfb-run -a python3 tools/slime_goose_gif.py          # writes Samples/SlimeJumpGoose/slimejump.gif
