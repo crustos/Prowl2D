@@ -218,13 +218,13 @@ def generate(out_path, sources):
         L.append("            _%sHigh++;" % n)
         L.append("        }")
         L.append("        %s s = _%s[slot];" % (n, n))
+        if s["reset"]:
+            L.append("        bool recycled = s != null;")
         L.append("        if (s == null)")
         L.append("        {")
         L.append("            s = new %s();" % n)
         L.append("            _%s[slot] = s;" % n)
         L.append("        }")
-        if s["reset"]:
-            L.append("        else s.Reset();")
         L.append("        Component c = Scene2D.Current.Create(node, ScriptKind.%s, slot, %s, %d);" % (n, mask, s["order"]))
         L.append("        if (c == null)")
         L.append("        {")
@@ -232,6 +232,9 @@ def generate(out_path, sources):
         L.append("            return null;")
         L.append("        }")
         L.append("        s.Self = c;")
+        if s["reset"]:
+            # after Self is this component: a script that stands for native code (script_native) resets its pool slot by Self.Slot, which until now was the previous user's
+            L.append("        if (recycled) s.Reset();")
         if s["transform"]:
             L.append("        s.transform = node;")
         if s["gameobject"]:
