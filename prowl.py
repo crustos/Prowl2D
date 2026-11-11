@@ -6,6 +6,7 @@
     python3 prowl.py --plugin tool.py [--plugin DIR]     load Python plugins: they add command-line options, importers for other file types, and hooks on the project and the editor (prowl_editor/plugins.py)
     python3 prowl.py --demo slime          open Samples/SlimeJumpDestruct as a project and play it in the viewport (the dirt wall is dug, crates burst)
     python3 prowl.py --demo slime-rust     open SlimeJump with its game logic in Rust scripts (Samples/SlimeJumpRust): press F5 to build them, then play (arrows or A/D, space, mouse: blaster and lasso, T: the bot)
+    python3 prowl.py --demo slime-goose    the same with Goose scripts (Samples/SlimeJumpGoose)
     python3 prowl.py --viewport [...]      also open the engine's SDL2 window on the first level
     python3 prowl.py --export-ascii DIR project.json     no GUI: write the project's sprites and levels as ASCII art / emoji text into DIR
     python3 prowl.py --import-ascii [OUT.json] [--sprites A.txt ...] [--levels B.txt ...]    build a project from ASCII art and emoji levels, save it as OUT.json and open it in the editor
@@ -51,6 +52,9 @@ def load_project(path, demo=None):
     if demo == "slime-rust":
         from prowl_editor.slime_rust import make_slime_rust_project
         return make_slime_rust_project()
+    if demo == "slime-goose":
+        from prowl_editor.slime_goose import make_slime_goose_project
+        return make_slime_goose_project()
     return make_demo_project()
 
 
@@ -271,7 +275,7 @@ def build_parser(api):
     ap.add_argument("--plugin", action="append", default=[], metavar="FILE.py|DIR", help="load a Python plugin (a file, or the .py files of a folder); repeatable. See prowl_editor/plugins.py")
     ap.add_argument("--output", "-o", metavar="OUT.json", help="save the project here after importing (the editor still opens on it)")
     ap.add_argument("--no-gui", action="store_true", help="do the imports (and --output) and exit without opening the editor")
-    ap.add_argument("--demo", choices=["coins", "slime", "slime-rust"], help="open a built-in project: 'slime' is Samples/SlimeJumpDestruct, played in the viewport; 'slime-rust' is SlimeJump in Rust (press F5 to build it)")
+    ap.add_argument("--demo", choices=["coins", "slime", "slime-rust", "slime-goose"], help="open a built-in project: 'slime' is Samples/SlimeJumpDestruct, played in the viewport; 'slime-rust' is SlimeJump in Rust and 'slime-goose' the same in Goose (press F5 to build it)")
     ap.add_argument("--viewport", action="store_true", help="also open the engine's SDL2 window")
     ap.add_argument("--export-ascii", metavar="DIR", help="no GUI: write sprites/ and levels/ text files of the project into DIR")
     ap.add_argument("--import-ascii", nargs="?", const="", metavar="OUT.json", help="build a project from --sprites and --levels text files (added to the project given, if any), save it as OUT.json (if given) and open it in the editor; --no-gui only writes the file")
