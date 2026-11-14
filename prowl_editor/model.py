@@ -18,11 +18,13 @@ import re
 import zlib
 
 from . import generated, languages
+from .images import Image, ImageError
 from .lights import DEFAULT_LIGHTING, clean_light, clean_lighting
 
 FORMAT = "prowl2d-project"
-VERSION = 2                    # the newest this editor reads. 1: no script languages. 2: a script may say "language"; a project is written as 2 only when one does,
-                               # so that an editor older than the languages refuses it rather than read a Rust script as C#
+VERSION = 3                    # the newest this editor reads. 1: no script languages. 2: a script may say "language"; a project is written as 2 only when one does,
+                               # so that an editor older than the languages refuses it rather than read a Rust script as C#. 3: images, parallax layers and hidden tiles;
+                               # a project is written as 3 only when it has one (an older editor would silently drop them on save)
 TRANSPARENT_KEY = "."
 MAX_PALETTE = 256            # an index fits a byte
 MAX_SPRITE_SIDE = 256
@@ -327,13 +329,14 @@ class LevelCells:
 
 
 class TileDef:
-    def __init__(self, emoji, name, sprite="", solid=False, dynamic=False, diggable=False, face=False, clip="", body="", variants=None, patches="", connects="", joins=None):
+    def __init__(self, emoji, name, sprite="", solid=False, dynamic=False, diggable=False, face=False, clip="", body="", variants=None, patches="", connects="", joins=None, hidden=False):
         self.emoji = emoji
         self.name = name         # natural, e.g. 'brick' or 'deciduous tree'
         self.sprite = sprite     # a sprite's name; "" means: the sprite with this tile's name, if there is one
         self.solid = solid       # the viewport's play mode gives it a collider
         self.dynamic = dynamic   # ...a movable body (a crate) instead of part of the static ground; implies a collider
         self.diggable = diggable  # a blast removes it (dirt); the viewport's play mode only
+        self.hidden = hidden      # not drawn, though it still collides: a smooth image over it (a skin layer) draws the ground instead
         self.face = face         # the emoji is a face: a Grease Pencil head rendered by emoji_faces.py, on the ASCII art sprite `body`; `sprite` is the result
         self.clip = clip         # ...which of the face's animations it plays ("" for the default, talk)
         self.body = body         # ...the name of the sprite that is its body (it has a square of magenta '@' where the head goes)
@@ -388,6 +391,8 @@ class TileDef:
             d["dynamic"] = True
         if self.diggable:
             d["diggable"] = True
+        if self.hidden:
+            d["hidden"] = True
         if self.face:
             d["face"] = True
             if self.clip:
@@ -414,6 +419,7 @@ class Level:
         self.lights = []    # the lights in the level (lights.py)
         self.lighting = copy.deepcopy(DEFAULT_LIGHTING)   # ...and what they light over: {"enabled", "ambient", "falloff", "glow", "exposure"}
         self.effects = []   # the picture effects over the level, first to last: {"effect": name, "values": {parameter: value}, "enabled": bool} (fx.py, fxdefs.py)
+        self.layers = []    # parallax layers of pictures (parallax.py): behind the tiles, or in front of them (`over`); see clean_layers for what a layer is
 
     def check_size(self, width, height):
         if not (1 <= width <= MAX_LEVEL_SIDE and 1 <= height <= MAX_LEVEL_SIDE):
@@ -479,6 +485,62 @@ def _effects_from_json(items, where):
     return out
 
 
+def _num(v, where, lo=None, hi=None, positive=False):
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v or abs(v) == float("inf"):
+        raise ProjectError("%s: expected a number" % where)
+    if (lo is not None and v < lo) or (hi is not None and v > hi) or (positive and v <= 0):
+        raise ProjectError("%s: %s is out of range%s" % (where, v, " (more than 0)" if positive else " (%s to %s)" % (lo, hi)))
+    return float(v)
+
+
+def clean_layers(items, images, where):
+    """A level's parallax layers, checked: [{name, parallax: [x, y], over, alpha, haze: [colour, amount] or None, items: [{image, x, y, w, h, flip, sway, bob, swim}]}].
+    Positions and sizes are in cells, x to the right and y DOWN from the level's top left corner (the way its rows are written). `parallax` is how much of the camera's movement a layer follows
+    (1 moves with the level, 0 stays on the screen, 0.2 drifts slowly: far away). `images` are the project's image names; an item that names another is an error."""
+    if not isinstance(items, list):
+        raise ProjectError("%s: layers must be a list" % where)
+    out = []
+    for n, l in enumerate(items):
+        at = "%s.layers[%d]" % (where, n)
+        if not isinstance(l, dict) or "name" not in l:
+            raise ProjectError("%s: expected {name, parallax, items}" % at)
+        par = l.get("parallax", [0.5, 0.5])
+        par = [par, par] if isinstance(par, (int, float)) and not isinstance(par, bool) else par
+        if not isinstance(par, (list, tuple)) or len(par) != 2:
+            raise ProjectError("%s.parallax: expected a number or [x, y]" % at)
+        haze = l.get("haze")
+        if haze is not None:
+            if not isinstance(haze, (list, tuple)) or len(haze) != 2:
+                raise ProjectError("%s.haze: expected [colour, amount]" % at)
+            try:
+                parse_color(haze[0])
+            except ProjectError as e:
+                raise ProjectError("%s.haze: %s" % (at, e))
+            haze = [str(haze[0]), _num(haze[1], at + ".haze amount", 0.0, 1.0)]
+        layer = {"name": str(l["name"]), "parallax": [_num(par[0], at + ".parallax", -4.0, 4.0), _num(par[1], at + ".parallax", -4.0, 4.0)],
+                 "over": bool(l.get("over", False)), "alpha": _num(l.get("alpha", 1.0), at + ".alpha", 0.0, 1.0), "haze": haze, "items": []}
+        if not isinstance(l.get("items", []), list):
+            raise ProjectError("%s.items: expected a list" % at)
+        for k, it in enumerate(l.get("items", [])):
+            w = "%s.items[%d]" % (at, k)
+            if not isinstance(it, dict) or "image" not in it:
+                raise ProjectError("%s: expected {image, x, y, w, h}" % w)
+            if it["image"] not in images:
+                raise ProjectError("%s: there is no image named %r in this project" % (w, it["image"]))
+            swim = it.get("swim")
+            if swim is not None:
+                if not isinstance(swim, (list, tuple)) or len(swim) != 2:
+                    raise ProjectError("%s.swim: expected [cells, cells per second]" % w)
+                swim = [_num(swim[0], w + ".swim", positive=True), _num(swim[1], w + ".swim", positive=True)]
+            sway = it.get("sway")
+            layer["items"].append({"image": it["image"], "x": _num(it.get("x", 0), w + ".x"), "y": _num(it.get("y", 0), w + ".y"),
+                                   "w": _num(it.get("w", 1), w + ".w", positive=True), "h": _num(it.get("h", 1), w + ".h", positive=True),
+                                   "flip": bool(it.get("flip", False)), "sway": None if sway is None else _num(sway, w + ".sway", 0.0, 1.0),
+                                   "bob": bool(it.get("bob", False)), "swim": swim, "base": _num(it.get("base", 0), w + ".base", 0.0)})
+        out.append(layer)
+    return out
+
+
 def _lights_from_json(item, where):
     """A level's "lights" and "lighting", checked and brought into range; an error names the place."""
     lights = item.get("lights", [])
@@ -529,6 +591,7 @@ class Project:
         self.sprites = []
         self.tiles = {}                 # emoji -> TileDef (insertion order is the tile palette's order)
         self.levels = []
+        self.images = {}                # name -> images.Image: true-colour pictures that the levels' layers draw
         self.scripts = []               # ScriptFile: the project's C# (the editor's code editor; Build compiles them into the engine)
         self.backdrop = ""              # the name of a backdrop the viewport draws behind the tiles (scenery.py), or none
         self.game_scripts = []          # script class names that run once, on a node of the game itself, whenever a level plays
@@ -640,14 +703,18 @@ class Project:
             "empty": self.empty,
             "tiles": [t.to_json() for t in self.tiles.values()],
             "levels": [self._level_json(l) for l in self.levels],
+            **({"images": [i.to_json() for i in self.images.values()]} if self.images else {}),
             **({"scripts": [self._script_json(f) for f in self.scripts]} if self.scripts else {}),
             **({"backdrop": self.backdrop} if self.backdrop else {}),
             **({"game_scripts": list(self.game_scripts)} if self.game_scripts else {}),
         }
 
     def file_version(self):
-        """What version this project is written as: 2 when a script is in a language other than C#, else 1 (so a project of C# scripts still opens in an editor that has no languages)."""
-        return VERSION if any(f.language != languages.DEFAULT for f in self.scripts) else 1
+        """What version this project is written as: 3 when it has images, layers or a hidden tile; 2 when a script is in a language other than C#; else 1 (so a project of C# scripts
+        and tiles still opens in an older editor)."""
+        if self.images or any(l.layers for l in self.levels) or any(t.hidden for t in self.tiles.values()):
+            return 3
+        return 2 if any(f.language != languages.DEFAULT for f in self.scripts) else 1
 
     @staticmethod
     def _script_json(f):
@@ -662,6 +729,8 @@ class Project:
             d["lighting"] = copy.deepcopy(l.lighting)
         if l.lights:
             d["lights"] = copy.deepcopy(l.lights)
+        if l.layers:
+            d["layers"] = copy.deepcopy(l.layers)
         if l.effects:
             d["effects"] = [{"effect": e["effect"], "values": dict(e["values"]), "enabled": bool(e.get("enabled", True))} for e in l.effects]
         return d
@@ -678,13 +747,20 @@ class Project:
         for n, item in enumerate(data.get("sprites", [])):
             p.sprites.append(Sprite.from_json(item, p.palette, "sprites[%d]" % n))
         p.empty = data.get("empty", DEFAULT_EMPTY)
+        for n, item in enumerate(data.get("images", [])):
+            try:
+                img = Image.from_json(item, "images[%d]" % n)
+            except ImageError as e:
+                raise ProjectError(str(e))
+            p.images[img.name] = img
         for n, item in enumerate(data.get("tiles", [])):
             if not isinstance(item, dict) or "emoji" not in item or "name" not in item:
                 raise ProjectError("tiles[%d]: expected {emoji, name}" % n)
             p.tiles[item["emoji"]] = TileDef(item["emoji"], item["name"], item.get("sprite", ""), bool(item.get("solid", False)),
                                           bool(item.get("dynamic", False)), bool(item.get("diggable", False)),
                                           bool(item.get("face", False)), str(item.get("clip", "")), str(item.get("body", "")),
-                                          item.get("variants"), str(item.get("patches", "")), str(item.get("connects", "")), item.get("joins"))
+                                          item.get("variants"), str(item.get("patches", "")), str(item.get("connects", "")), item.get("joins"),
+                                          bool(item.get("hidden", False)))
         for n, item in enumerate(data.get("scripts", [])):
             if not isinstance(item, dict) or "name" not in item:
                 raise ProjectError("scripts[%d]: expected {name, text, language}" % n)
@@ -711,6 +787,7 @@ class Project:
                     lv.cells[y * width + x] = g
             lv.lights, lv.lighting = _lights_from_json(item, where)
             lv.effects = _effects_from_json(item.get("effects", []), where)
+            lv.layers = clean_layers(item.get("layers", []), p.images, where)
             p.levels.append(lv)
         return p
 

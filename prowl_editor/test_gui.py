@@ -404,6 +404,77 @@ class Palette_(Base):
         self.assertEqual(proj.palette.key_of(i), "Z")
 
 
+class LayersWindowTests(Base):
+    def setUp(self):
+        super().setUp()
+        from .images import Image, encode_png
+        from .model import clean_layers
+
+        p = self.studio.project
+        p.images["a"] = Image("a", encode_png(bytes([255, 0, 0, 255] * 4), 2, 2))
+        self.level = self.studio.level
+        self.level.layers = clean_layers([{"name": "far", "parallax": 0.2, "haze": ["#0d3b6e", 0.5], "items": [{"image": "a", "w": 2, "h": 1}]},
+                                          {"name": "front", "parallax": 1.4, "over": True, "alpha": 0.8, "items": []}], p.images, "t")
+        self.studio.edited("level")
+        self.win = self.windows["layers"]
+        _app.processEvents()
+
+    def cell(self, r, c):
+        return self.win.table.item(r, c)
+
+    def test_it_lists_the_layers(self):
+        t = self.win.table
+        self.assertEqual(t.rowCount(), 2)
+        self.assertEqual([self.cell(0, c).text() for c in (0, 1, 2, 3, 5, 6)], ["far", "0.2", "0.2", "1", "0.5", "1"])
+        self.assertEqual(self.cell(1, 4).checkState(), Qt.Checked)
+        self.assertEqual(self.cell(0, 4).checkState(), Qt.Unchecked)
+
+    def test_editing_a_cell_changes_the_level_and_can_be_undone(self):
+        self.cell(0, 1).setText("0.35")
+        self.assertEqual(self.level.layers[0]["parallax"], [0.35, 0.2])
+        self.cell(0, 4).setCheckState(Qt.Checked)
+        self.assertTrue(self.level.layers[0]["over"])
+        self.cell(0, 5).setText("0.9")
+        self.assertEqual(self.level.layers[0]["haze"], ["#0d3b6e", 0.9])
+        self.studio.do_undo()
+        self.studio.do_undo()
+        self.studio.do_undo()
+        self.assertEqual(self.level.layers[0]["parallax"], [0.2, 0.2])
+        self.assertFalse(self.level.layers[0]["over"])
+
+    def test_a_bad_value_is_refused_and_the_table_shows_the_real_one(self):
+        seen = []
+        self.studio.message.connect(seen.append)
+        self.cell(0, 3).setText("7")
+        self.assertEqual(self.level.layers[0]["alpha"], 1.0)
+        self.assertEqual(self.cell(0, 3).text(), "1")
+        self.cell(0, 1).setText("abc")
+        self.assertEqual(self.level.layers[0]["parallax"], [0.2, 0.2])
+        self.assertEqual(len(seen), 2)
+
+    def test_remove_and_move(self):
+        self.win.table.selectRow(0)
+        self.win.buttons["down"].click()
+        self.assertEqual([l["name"] for l in self.level.layers], ["front", "far"])
+        self.win.table.selectRow(0)
+        self.win.buttons["del"].click()
+        self.assertEqual([l["name"] for l in self.level.layers], ["far"])
+        self.studio.do_undo()
+        self.assertEqual([l["name"] for l in self.level.layers], ["front", "far"])
+
+    def test_the_tile_dialog_has_a_hidden_box_that_survives_editing(self):
+        from .gui_widgets import TileDialog
+
+        e = next(iter(self.studio.project.tiles))
+        t = self.studio.project.tiles[e]
+        d = TileDialog(self.studio.project, t)
+        self.assertFalse(d.hidden.isChecked())
+        d.hidden.setChecked(True)
+        d._accept()
+        self.studio.edit_tile(t.emoji, *d.result_values)
+        self.assertTrue(self.studio.project.tiles[e].hidden)
+
+
 if __name__ == "__main__":
     unittest.main()
 

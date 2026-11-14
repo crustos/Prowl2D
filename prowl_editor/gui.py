@@ -90,7 +90,7 @@ class Studio(QtCore.QObject):
     def _snap(obj):
         if isinstance(obj, Sprite):
             return (obj.width, obj.height, [bytes(f) for f in obj.frames])
-        return (obj.width, obj.height, list(obj.cells), copy.deepcopy(obj.effects), copy.deepcopy(obj.lights), copy.deepcopy(obj.lighting))
+        return (obj.width, obj.height, list(obj.cells), copy.deepcopy(obj.effects), copy.deepcopy(obj.lights), copy.deepcopy(obj.lighting), copy.deepcopy(obj.layers))
 
     @staticmethod
     def _restore(obj, snap):
@@ -101,6 +101,7 @@ class Studio(QtCore.QObject):
             obj.cells = list(snap[2])
             obj.effects = copy.deepcopy(snap[3])
             obj.lights, obj.lighting = copy.deepcopy(snap[4]), copy.deepcopy(snap[5])
+            obj.layers = copy.deepcopy(snap[6])
 
     def checkpoint(self, obj):
         """Call BEFORE changing a sprite or level: one call is one undo step."""
@@ -201,6 +202,38 @@ class Studio(QtCore.QObject):
         e["values"][param] = stored
         self.edited("effects")
         return stored
+
+    # ---- the parallax layers of the current level (model.clean_layers): pictures behind the tiles and in front of them
+    def set_layer(self, index, **fields):
+        """Changes some of a layer's values ({name, parallax: [x, y], over, alpha, haze}); a bad value raises ProjectError and changes nothing. Returns the layer."""
+        from .model import clean_layers
+        lv = self.level
+        if lv is None or not (0 <= index < len(lv.layers)):
+            return None
+        new = clean_layers([dict(lv.layers[index], **fields)], self.project.images, "layer")[0]
+        if new == lv.layers[index]:
+            return new
+        self._merged((id(lv), "layer", index, tuple(sorted(fields))))
+        lv.layers[index] = new
+        self.edited("level")
+        return new
+
+    def remove_layer(self, index):
+        lv = self.level
+        if lv is None or not (0 <= index < len(lv.layers)):
+            return
+        self.checkpoint(lv)
+        del lv.layers[index]
+        self.edited("level")
+
+    def move_layer(self, index, to):
+        """Moves a layer in the list (the list is only for reading: layers are drawn by parallax, far to near)."""
+        lv = self.level
+        if lv is None or not (0 <= index < len(lv.layers)) or not (0 <= to < len(lv.layers)) or index == to:
+            return
+        self.checkpoint(lv)
+        lv.layers.insert(to, lv.layers.pop(index))
+        self.edited("level")
 
     # ---- the lights of the current level (lights.py); a drag or a slider is one undo step, as with the effects
     def _merged(self, key):
@@ -414,15 +447,15 @@ class Studio(QtCore.QObject):
         self.edited("structure")
 
     # ---- tiles
-    def add_tile(self, emoji, name, sprite, solid, dynamic=False, diggable=False):
-        self.project.tiles[emoji] = TileDef(emoji, name, sprite, solid, dynamic, diggable)
+    def add_tile(self, emoji, name, sprite, solid, dynamic=False, diggable=False, hidden=False):
+        self.project.tiles[emoji] = TileDef(emoji, name, sprite, solid, dynamic, diggable, hidden=hidden)
         self.tile = emoji
         self.edited("structure")
 
-    def edit_tile(self, old, emoji, name, sprite, solid, dynamic=False, diggable=False):
+    def edit_tile(self, old, emoji, name, sprite, solid, dynamic=False, diggable=False, hidden=False):
         tiles = {}
         for k, t in self.project.tiles.items():          # keep the tile's place in the tile list
-            tiles[emoji if k == old else k] = TileDef(emoji, name, sprite, solid, dynamic, diggable, t.face, t.clip, t.body, t.variants, t.patches, t.connects, t.joins) if k == old else t
+            tiles[emoji if k == old else k] = TileDef(emoji, name, sprite, solid, dynamic, diggable, t.face, t.clip, t.body, t.variants, t.patches, t.connects, t.joins, hidden) if k == old else t
         self.project.tiles = tiles
         if emoji != old:
             for lv in self.project.levels:
@@ -1089,7 +1122,7 @@ class LevelEditorWindow(Floating):
         self.tiles.clear()
         for e, t in proj.tiles.items():
             spr = proj.sprite_for_tile(t)
-            it = QtWidgets.QListWidgetItem("%s  %s%s" % (e, t.name, "  (%s)" % ", ".join(w for w, on in (("solid", t.solid), ("dynamic", t.dynamic), ("diggable", t.diggable)) if on) if (t.solid or t.dynamic or t.diggable) else ""))
+            it = QtWidgets.QListWidgetItem("%s  %s%s" % (e, t.name, "  (%s)" % ", ".join(w for w, on in (("solid", t.solid), ("dynamic", t.dynamic), ("diggable", t.diggable), ("hidden", t.hidden)) if on) if (t.solid or t.dynamic or t.diggable or t.hidden) else ""))
             it.setData(Qt.UserRole, e)
             it.setFont(emoji_font(16))
             if spr is not None:
@@ -1351,7 +1384,7 @@ class ProjectWindow(QtWidgets.QMainWindow):
         self.levels.itemDoubleClicked.connect(lambda _: self.show_window("levels"))
         lay.addWidget(self.levels)
         row = QtWidgets.QHBoxLayout()
-        for text, key in (("Palette", "palette"), ("Sprite Editor", "sprites"), ("Level Editor", "levels"), ("Effects", "effects"), ("Lights", "lights"), ("Sand", "sand"), ("Scripts", "scripts")):
+        for text, key in (("Palette", "palette"), ("Sprite Editor", "sprites"), ("Level Editor", "levels"), ("Effects", "effects"), ("Lights", "lights"), ("Layers", "layers"), ("Sand", "sand"), ("Scripts", "scripts")):
             b = QtWidgets.QPushButton(text)
             b.clicked.connect(lambda _=False, k=key: self.show_window(k))
             row.addWidget(b)
@@ -1423,6 +1456,7 @@ class ProjectWindow(QtWidgets.QMainWindow):
         self._action(w, "Level Editor", lambda: self.show_window("levels"))
         self._action(w, "Effects", lambda: self.show_window("effects"))
         self._action(w, "Lights", lambda: self.show_window("lights"))
+        self._action(w, "Layers", lambda: self.show_window("layers"))
         self._action(w, "Sand", lambda: self.show_window("sand"))
         self._action(w, "Scripts (code editor)", lambda: self.show_window("scripts"))
         self._action(w, "Viewport (SDL)", self.viewport.open)
@@ -2255,8 +2289,106 @@ class ScriptsWindow(Floating):
         super().closeEvent(ev)
 
 
+class LayersWindow(Floating):
+    """The parallax layers of the current level: pictures behind its tiles and in front of them. A layer follows `parallax` of the camera (1 moves with the level, 0 stays on the screen,
+    0.2 drifts slowly: far away); layers are drawn from the least parallax to the most. They come from a levelang file (`levelang export-project`) and show in the viewport; every change here
+    goes through the Studio, so it is saved with the project and can be undone."""
+
+    COLUMNS = ("Layer", "Parallax x", "Parallax y", "Alpha", "In front", "Haze", "Pictures")
+
+    def __init__(self, studio):
+        super().__init__(studio, "Layers", (700, 360))
+        lay = QtWidgets.QVBoxLayout(self)
+        self.title = QtWidgets.QLabel()
+        lay.addWidget(self.title)
+        self.table = QtWidgets.QTableWidget(0, len(self.COLUMNS))
+        self.table.setHorizontalHeaderLabels(self.COLUMNS)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.table.itemChanged.connect(self._changed)
+        lay.addWidget(self.table, 1)
+        row = QtWidgets.QHBoxLayout()
+        self.buttons = {}
+        for key, text, fn in (("up", "Up", lambda: self._move(-1)), ("down", "Down", lambda: self._move(1)), ("del", "Remove", self._remove)):
+            b = QtWidgets.QPushButton(text)
+            b.clicked.connect(lambda _=False, f=fn: f())
+            row.addWidget(b)
+            self.buttons[key] = b
+        row.addStretch(1)
+        lay.addLayout(row)
+        hint = QtWidgets.QLabel("Haze is the amount (0 to 1) of the layer's haze colour mixed in, which darkens as well as fogs. Edit the pictures in the levelang file and export again.")
+        hint.setWordWrap(True)
+        lay.addWidget(hint)
+        self._busy = False
+        self.refresh()
+
+    def on_changed(self, kind):
+        if kind in ("all", "level", "structure", "selection"):
+            self.refresh()
+
+    def refresh(self):
+        lv = self.studio.level
+        self._busy = True
+        try:
+            self.title.setText("Level %s: %d layer(s)" % (lv.name, len(lv.layers)) if lv else "No level")
+            layers = lv.layers if lv else []
+            self.table.setRowCount(len(layers))
+            for r, l in enumerate(layers):
+                cells = [l["name"], "%g" % l["parallax"][0], "%g" % l["parallax"][1], "%g" % l["alpha"], None, "%g" % l["haze"][1] if l["haze"] else "", str(len(l["items"]))]
+                for c, text in enumerate(cells):
+                    it = QtWidgets.QTableWidgetItem(text or "")
+                    if c == 4:
+                        it.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+                        it.setCheckState(Qt.Checked if l["over"] else Qt.Unchecked)
+                    elif c == 6 or (c == 5 and not l["haze"]):
+                        it.setFlags(Qt.ItemIsEnabled)
+                    self.table.setItem(r, c, it)
+        finally:
+            self._busy = False
+
+    def _changed(self, item):
+        if self._busy:
+            return
+        r, c = item.row(), item.column()
+        lv = self.studio.level
+        if lv is None or r >= len(lv.layers):
+            return
+        l = lv.layers[r]
+        try:
+            if c == 0:
+                self.studio.set_layer(r, name=item.text())
+            elif c in (1, 2):
+                par = list(l["parallax"])
+                par[c - 1] = float(item.text())
+                self.studio.set_layer(r, parallax=par)
+            elif c == 3:
+                self.studio.set_layer(r, alpha=float(item.text()))
+            elif c == 4:
+                self.studio.set_layer(r, over=item.checkState() == Qt.Checked)
+            elif c == 5 and l["haze"]:
+                self.studio.set_layer(r, haze=[l["haze"][0], float(item.text())])
+        except (ValueError, ProjectError) as e:
+            self.studio.message.emit("Layer: %s" % e)
+            self.refresh()
+
+    def _row(self):
+        r = self.table.currentRow()
+        return r if r >= 0 else None
+
+    def _move(self, d):
+        r = self._row()
+        if r is not None:
+            self.studio.move_layer(r, r + d)
+            self.table.selectRow(max(0, min(self.table.rowCount() - 1, r + d)))
+
+    def _remove(self):
+        r = self._row()
+        if r is not None:
+            self.studio.remove_layer(r)
+
+
 def create_windows(studio):
-    windows = {"palette": PaletteWindow(studio), "sprites": SpriteEditorWindow(studio), "levels": LevelEditorWindow(studio), "effects": EffectsWindow(studio), "lights": LightsWindow(studio),
+    windows = {"palette": PaletteWindow(studio), "sprites": SpriteEditorWindow(studio), "levels": LevelEditorWindow(studio), "effects": EffectsWindow(studio), "lights": LightsWindow(studio), "layers": LayersWindow(studio),
                "sand": SandWindow(studio), "scripts": ScriptsWindow(studio)}
     main = ProjectWindow(studio, windows)
     windows["sand"].controller = main.viewport
@@ -2281,6 +2413,7 @@ def tile_windows(main, windows):
         windows["levels"].move(x0 + 1120, y0 + 560)
         windows["effects"].move(x0 + 1530, y0 + 30)
         windows["lights"].move(x0 + 1530, y0 + 520)
+        windows["layers"].move(x0 + 1530, y0 + 30)
         windows["sand"].move(x0 + 1960, y0 + 30)
         windows["scripts"].move(x0 + 1960, y0 + 520)
         return
@@ -2290,5 +2423,6 @@ def tile_windows(main, windows):
     windows["levels"].move(340, 120)
     windows["effects"].move(640, 200)
     windows["lights"].move(700, 260)
+    windows["layers"].move(680, 220)
     windows["sand"].move(760, 320)
     windows["scripts"].move(120, 80)

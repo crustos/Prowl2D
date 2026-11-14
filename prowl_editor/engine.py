@@ -15,7 +15,7 @@ import ctypes as C
 import os
 import time
 
-from . import scenery
+from . import images, parallax, scenery
 from .model import LevelCells
 
 ABI_VERSION = 5
@@ -101,6 +101,7 @@ BTN_LEFT, BTN_MIDDLE, BTN_RIGHT = 0, 1, 2
 KEY_ESCAPE, KEY_HOME, KEY_LEFT, KEY_RIGHT, KEY_DOWN, KEY_UP = 256, 268, 263, 262, 264, 265
 BODY_STATIC, BODY_KINEMATIC, BODY_DYNAMIC = 0, 1, 2
 FILTER_NEAREST = 0
+FILTER_LINEAR = 1      # smooth pictures (a layer's images) are scaled with this; pixel-art sprites stay nearest
 
 
 def floats_ptr(arr):
@@ -294,6 +295,30 @@ class Viewport:
             tex = self.engine.lib.gfx_texture(sprite.width, sprite.height, FILTER_NEAREST, C.addressof(buf))
             self._textures[key] = tex            # 0 (no room: 63 textures) is remembered too, and the tile shows as a placeholder
         return tex
+
+    def _image_texture(self, name):
+        """The texture of one of the project's images (a layer's picture), smooth when scaled. 0 if there is no such image or no room (63 textures): the layer item is skipped."""
+        key = ("image", name)
+        tex = self._textures.get(key)
+        if tex is None:
+            img = self.project.images.get(name)
+            tex = 0
+            if img is not None:
+                try:
+                    w, h, rgba = images.decode_rgba(img.png)
+                    buf = (C.c_uint8 * len(rgba)).from_buffer_copy(rgba)
+                    tex = self.engine.lib.gfx_texture(w, h, FILTER_LINEAR, C.addressof(buf))
+                except Exception:                    # (a PNG that will not decode: the item is missing, the viewport carries on)
+                    tex = 0
+            self._textures[key] = tex
+        return tex
+
+    def _draw_layers(self, batches):
+        for name, verts in batches:
+            tex = self._image_texture(name)
+            if tex:
+                for piece in parallax.chunks(verts):
+                    self.engine.lib.gfx_triangles(floats_ptr(piece), len(piece) // 8, tex)
 
     def _sync_textures(self):
         rev = (self.project.revision, self.project.palette.version)
@@ -714,6 +739,9 @@ class Viewport:
         quads = {}                                               # texture id -> array of mesh vertices
         if proj.backdrop:
             scenery.draw(proj.backdrop, self, flat)
+        behind = over = ()                                       # the level's parallax layers: pictures behind the tiles and in front of them (parallax.py)
+        if lv is not None and lv.layers:
+            behind, over = parallax.plan(lv, self.cx - self.half * self.width / float(self.height), lv.height - (self.cy + self.half), self.clock)
         if lv is not None:
             aspect = self.width / float(self.height)
             x0 = max(0, int(self.cx - self.half * aspect) - 1)
@@ -732,6 +760,8 @@ class Viewport:
                     if not g_ or (x, y) in hidden:
                         continue
                     tile = proj.tiles.get(g_)
+                    if tile is not None and tile.hidden:
+                        continue                                 # it collides but a layer's image draws it
                     spr = None
                     if tile is not None:
                         if tile.connects:
@@ -799,8 +829,10 @@ class Viewport:
             flat.extend((self.engine.lib.p2d_node_x(node), self.engine.lib.p2d_node_y(node), 0.35, 0.35, 0.0, 1.0, 0.55, 0.2, 1.0, 1, 5, 0))
         n = len(flat) // 12
         e.gfx_draw(floats_ptr(flat) if n else None, n)
+        self._draw_layers(behind)
         for tex, verts in quads.items():
             e.gfx_triangles(floats_ptr(verts), len(verts) // 8, tex)
+        self._draw_layers(over)
         if lv is not None and self.sand.enabled and self._sand_ready():
             e.gfx_sand_draw(0.0, 0.0, float(lv.width), float(lv.height))
         self._apply_lights(lv)
