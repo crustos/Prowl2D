@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "levelang"
+version = "0.1.0"
+description = "Emoji/ASCII/SVG level language that compiles to Python, previews as GIFs, and (later) exports to game engines"
+requires-python = ">=3.9"
+dependencies = ["Pillow>=10"]
+
+[project.optional-dependencies]
+svg = ["cairosvg"]
+dev = ["pytest", "cairosvg"]
+
+[project.scripts]
+levelang = "levelang.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["levelang*"]
+
+[tool.setuptools.package-data]
+levelang = ["export/*.cs"]
