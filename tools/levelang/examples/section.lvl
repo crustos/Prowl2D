@@ -1,0 +1,17 @@
+## example of a function that generates a level section, and also takes 'a', and 'b' section generator functions,
+## that extend the level, in this example they generate deep caves downward from this points.
+def section_start( a, b ):
+   🪼                                                       🐟
+                                      🪼
+🪸                 🐟    🐡
+🪸          🦠
+🪸 🪸🪸           🪸🪸    🐚                🐟         🪼                                  🐟
+🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪                                   🐙
+                             🟪            🐡                🪸🪸🪸     🪸 🪸🪸🪸🪸   🪸 🪸  🐡
+                             🟪                          🪸🪸🪸🪸🪸🪸🪸🪸🪸🪸🪸   🪸🪸🐙🪸🪸🪸🪸
+                             🟪🪸🪸🪸                  🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪🟪b(   )🟪🟪🟪🟪🟪🟪🟪🟪🟪
+                             🟪🟪🟪🟪🟪               🟪
+                                     🟪        🐡        🟪
+                                     🟪               🟪🟪🟪
+                                     🟪             🟪🟪🟪
+                                    a(🟪      🟪🟪🟪)

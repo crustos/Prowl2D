@@ -1,0 +1,44 @@
+## level: converted from a Level.cs by `levelang from-cs`. One emoji per cell, 2 spaces = air, y up in the game.
+meta(width=64, height=20)
+
+def 🧱 -> fill.sienna, solid:
+
+def 🪜 -> fill.forestgreen, climb:
+
+def 🔺 -> fill.crimson, hazard:
+
+def 💎 -> fill.deepskyblue, item:
+
+def 🚩 -> fill.orange, save, at(0.5, 0):
+
+def 🪱 -> fill.violet, enemy(0), at(0.5, 0.3):
+
+def 🦇 -> fill.slateblue, enemy(1):
+
+def 🐸 -> fill.limegreen, spawn, at(0.5, 0.575):
+
+def 🏁 -> fill.white, goal, at(0.5, 0):
+
+def level():
+🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱
+🧱                                                                                                                            🧱
+🧱                                                                                                                            🧱
+🧱                                                                                                                      🦇    🧱
+🧱                                                                                                                  💎        🧱
+🧱                                                                                                                        🏁  🧱
+🧱                                                                                                                            🧱
+🧱                                                                                                              🪜🧱🧱🧱🧱🧱🧱🧱
+🧱                                                                                                              🪜🧱🧱🧱🧱🧱🧱🧱
+🧱                                                                                                              🪜🧱🧱🧱🧱🧱🧱🧱
+🧱                                                                                                              🪜🧱🧱🧱🧱🧱🧱🧱
+🧱                                                                                                              🪜🧱🧱🧱🧱🧱🧱🧱
+🧱                                                    💎                                                        🪜🧱🧱🧱🧱🧱🧱🧱
+🧱                                                                                        💎                    🪜🧱🧱🧱🧱🧱🧱🧱
+🧱                          🧱🧱🧱🧱🧱🧱🧱                                                                      🪜🧱🧱🧱🧱🧱🧱🧱
+🧱    🐸        🚩          🧱🧱🧱🧱🧱🧱🧱                                        🪱                🚩          🪜🧱🧱🧱🧱🧱🧱🧱
+🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱              🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱
+🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🔺🔺🔺🔺🔺🔺🔺🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱
+🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱
+🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱🧱
+
+level()
