@@ -1,0 +1,47 @@
+W = 100 ## the level width## the default x and y are zero
+(☁️ or 🌧️ or 🌩️ or None) * W
+(☁️ or 🌧️ or 🌩️ or None) * W
+(☁️ or 🌧️ or 🌩️ or None) * W
+(☁️ or 🌧️ or 🌩️ or None) * W
+(☁️ or 🌧️ or 🌩️ or None) * W
+## the lines above will randomly scatter clouds along x for W tile blocks.
+
+
+
+## the floor
+x = 0; y = 6
+🧱*W
+🧱*W
+🧱*W
+🧱*W
+
+## single random blocks to jump over
+x = 0; y = 5
+(🧱 or 🪨 or None)*50
+
+def ⛰️(x,y):
+    if 🟩 * 0.1:
+        🟫
+        🟫
+        if 🟫 * 0.1:
+            🪙
+        else:
+            🪨
+
+
+## water ascii art with colors for the background fill and stroke color.
+def 🟦 -> fill.blue, stroke.white:
+~  ~.~ ~~ ~
+ ~ ~ ~ ~~~.
+~~. ~.~ ~ ~
+
+
+## mountain range ascii art
+def M(x,y):
+
+                                           ⛰️
+                                       ⛰️  ⛰️🪨 ⛰️  🌲⛰️🌲🌲🌲
+                                       ⛰️ ⛰️ 🪨🪨⛰️⛰️⛰️⛰️⛰️⛰️⛰️🌲
+                                         ⛰️🪨🪨🪨🌲⛰️⛰️⛰️⛰️⛰️🪨⛰️⛰️⛰️⛰️🌲      
+                       🛖🪨        ⛰️  ⛰️🏝️⛰️⛰️🌲⛰️🪨🪨⛰️⛰️⛰️⛰️⛰️⛰️⛰️🏕️⛰️⛰️⛰️⛰️⛰️⛰️⛰️⛰️
+               🏝️      🧱🪨🪨  🪨 🏕️   ⛰️⛰️⛰️ 🌲    🏕️🪨🪨⛰️  🪨🏝️🪨🪨🪨🪨🌲🪨🏕️ 🛖🌴
