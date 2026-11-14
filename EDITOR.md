@@ -93,6 +93,24 @@ A light has a place in cells (x right, y down from the top edge), a radius in ce
 click an empty place to add a light, drag one to move it, right-click one to remove it. The viewport lights its picture with them live (before the level's effects), and they stay
 where they were put when the camera pans or zooms. Moving a light, or a slider, is one undo step.
 
+## Layers: smooth pictures behind and in front of a level
+Sprites are pixel art (a palette of 256 colours, scaled with nearest filtering), which is right for tiles and wrong for a whale. A project can also hold **images** (true-colour PNGs, `"images": [{"name", "png": base64}]`)
+and a level can hold **parallax layers** of them (`"layers"` in the level's JSON): the viewport draws a layer's pictures as linear-filtered textured triangles (`gfx_triangles`, prowl_editor/parallax.py), behind the tiles or, for
+`"over": true`, in front of them.
+
+    "layers": [{"name": "far reef", "parallax": [0.2, 0.2], "over": false, "alpha": 1.0, "haze": ["#0d3b6e", 0.55],
+                "items": [{"image": "coral", "x": 3.5, "y": 8, "w": 6, "h": 6, "flip": false, "sway": 0.03, "bob": false, "swim": [14, 1.1], "base": 0}]}]
+
+Positions and sizes are in cells, x right and y down from the level's top left corner (the way its rows are written). `parallax` is how much of the camera's movement a layer follows: 1 moves with the level, 0 stays on the
+screen, 0.2 drifts slowly (far away), 1.4 rushes past; layers are drawn from the least parallax to the most. `haze` darkens and tints a layer toward a colour (a multiplied tint: baking it into pictures would need a
+copy of each per layer, and the renderer has 63 textures in all, shared with the tiles' sprites); `alpha` fades it. An item can `sway` (leans more toward its top: the picture is drawn as strips whose corners move; `base` is the
+cells of swaying plant under it, so a column leans as one), `bob`, and `swim` [cells, cells per second] there and back. A tile can be **hidden**: it still collides in play mode but is not drawn, which is how a smooth
+image of the ground (a layer of one picture) stands in for square tiles. The Layers window (Window menu) lists a level's layers and edits their parallax, alpha, haze amount and front/behind, reorders and removes them, each an undo step. A project with
+images, layers or a hidden tile is written as `"version":3`.
+
+The pictures come from a [levelang](tools/levelang/README.md) file: `python3 tools/levelang export-project level.lvl -o level.json` writes the grid (gameplay tiles as pixel-art sprites), every layer, the world's decoration, a
+water gradient and the smooth terrain skin as images, and `python3 prowl.py level.json` opens it. The viewport's play mode is the editor's own physics (solid tiles), not the SlimeJump game's.
+
 ## Scripts
 The Scripts window (Window menu) is a code editor for the project's scripts. A script is one file in one language: pick C#, C++, Rust, RPython or Goose in the Language box, then New script (the file list shows `Name.cs`, `.cpp`, `.rs`, `.py` or `.goose`).
 A class is a script when it carries its language's marker, and sprites and the game attach scripts by that class name, whatever the language:
@@ -124,7 +142,7 @@ The engine calls are the `public static` functions of `Native/Engine2D/Engine.cs
 Build (F5) builds all four languages. `tools/script_langs.py` first checks the other languages' files (the same step runs under `python3 tools/prowl2d_so.py --scripts DIR`, which tells languages apart by the file's extension): a capacity that is not an integer literal of at least 1, a marker with no class after it, a script without its `node` field, a callback that would never be called (not `void`, not public, no `&mut self` or `self`, a lifecycle callback with parameters, a collision callback without `other`), or two scripts of one name (across all languages: sprites and the game attach by name) is an error at its line. What the front ends say (`cpprust:`, Crust's, py2c's) is read into the same problems list, colour codes and all; an error the C compiler gives on the C a front end wrote has no place, because that line is not the script's.
 
 ## Project JSON
-`{"format":"prowl2d-project","version":1, palette, sprites, tiles, levels}`. Scripts are `"scripts": [{"name": "Spinner", "text": "...", "language": "cpp"}]` (`language` is `csharp` when left out, and is one of `csharp`, `cpp`, `rust`, `rpython`); a project with a script in a language other than C# is written as `"version":2`, so that an editor without languages refuses it instead of reading a Rust script as C#. Sprite frames are rows of palette key letters; `.` is index 0 (transparent).
+`{"format":"prowl2d-project","version":1, palette, sprites, tiles, levels}`. Scripts are `"scripts": [{"name": "Spinner", "text": "...", "language": "cpp"}]` (`language` is `csharp` when left out, and is one of `csharp`, `cpp`, `rust`, `rpython`); a project with a script in a language other than C# is written as `"version":2`, so that an editor without languages refuses it instead of reading a Rust script as C# (images, layers and hidden tiles make it `"version":3`). Sprite frames are rows of palette key letters; `.` is index 0 (transparent).
 Recolouring an index recolours every pixel that uses it, so scripts animate by changing one palette entry.
 
 ## Sprite ASCII

@@ -3,7 +3,10 @@
 
 ![SlimeJumpDestructSand: the slime digs down a ruined brick building; sand pours, water drains, boulders and crates burst](Samples/SlimeJumpDestructSand/slimejumpdestructsand.gif)
 
+![SlimeJumpLevelang: SlimeJump underwater, a level written as emoji art and SVG with levelang: parallax layers with a blue whale and a coral landscape, smooth sand and rock over square physics tiles](Samples/SlimeJumpLevelang/level.gif)
+
 - Playable demo: https://crustos.github.io/Prowl2D/
+- *[Samples/SlimeJumpLevelang](Samples/SlimeJumpLevelang): SlimeJump underwater, its level written in [levelang](tools/levelang) (emoji art, SVG tiles, parallax layers, a smooth skin over the square tiles) and exported to `Level.cs`; the same level opens in the editor with its layers (`levelang export-project`).*
 - *[Samples/SlimeJumpDestructSand](Samples/SlimeJumpDestructSand): a shaft down an old building, with falling sand, flowing water and destructible rock (Shatter2D). Headless: the same source runs on .NET and as a native C player with identical output.*
 
 **A Unity-like game engine, now a 2D engine, on [Box2D-Packed](https://github.com/crustos/box2d), whose core is being rewritten in a C# subset that translates to C.**
@@ -453,6 +456,7 @@ Roslyn against reference assemblies, and CCSharp's 73 tests from a fresh clone. 
 | `Prowl.Runtime/Destruction2D/` | the shared core of destructible terrain and shattering sprites (pure code, linked by `Prowl.Runtime` and `Prowl.Core2D`; see its README) |
 | `Prowl.Core2D/` | the 2D runtime that translates to C, and its terrain (`PixelTerrain2D`) and shattering (`Shatter2D`) |
 | `Samples/` | headless games: the check of the C build, run by `build.py samples` |
+| `tools/levelang/` | levelang: levels as emoji / ASCII / SVG art mixed with Python; previews as GIFs and writes the `Level.cs` of the SlimeJump samples (see its README) |
 | `Prowl.Runtime/Components/Physics2D/` | `Rigidbody2D`, the colliders and the joints (`Joint2D` and its seven types) |
 | `Prowl.Runtime/PhysicsCommon/` | what 2D and 3D share (collision matrix, force modes) |
 | `Native/Box2D/` | the C shim, its CMake project, and the test harness |

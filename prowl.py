@@ -100,7 +100,7 @@ def cmd_import_unity(out_json, roots, scenes=True, cell=None):
 
 def cmd_selftest():
     import unittest
-    names = ["prowl_editor.test_core", "prowl_editor.test_cli", "prowl_editor.test_gpu_physics"]
+    names = ["prowl_editor.test_core", "prowl_editor.test_cli", "prowl_editor.test_gpu_physics", "prowl_editor.test_layers"]
     try:
         import PyQt5  # noqa: F401
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
