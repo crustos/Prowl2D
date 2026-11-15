@@ -100,6 +100,15 @@ the same positions, sizes, flips, haze, alpha and motion; the `background(top, b
 terrain on a layer of its own, with the tiles it covers marked `hidden` in the grid (they still collide). The editor draws layers as smooth textured triangles. Its renderer has 63 textures in all, so a level needs
 about 40 distinct pictures at most; the exporter warns when it needs more. The sample reef exports to 22 images and 9 sprites, and its solid cells are SlimeJump's walls exactly (a test checks it).
 
+## Game: draw the layers and the skin
+
+`Level.cs` holds the physics only. For a game that draws, `python3 tools/levelang export-scenery FILE.lvl` writes `SceneryData.cs` next to the `.lvl`: the same pictures the editor
+export makes (layers, sizes, flips, animation, the smooth skin), packed into ONE atlas (255 colours + air, run-length encoded, so one texture and none of the renderer's 63-texture
+limit) and the layers' items as flat float arrays, far to near. `--max-px` (default 128) is the longest side of a picture in the atlas; a skin, being a picture of the whole level,
+gets 768. Phases and swim periods are worked out here, so the C# does no hashing and cannot disagree with the editor. A game draws it with `GFX.Triangles`; `Samples/SlimeJumpLevelang`
+has the drawing (`Scenery.cs`, `Viewer.cs`). Limits: the atlas is 256 colours, `haze` is a multiplied tint, and the sprites of tiles that stay in the grid (spikes, gems, ...) are not
+in it (the sample's viewer draws them as boxes).
+
 ## Prowl2D: export to `Level.cs`
 
 The SlimeJump samples (`Samples/SlimeJump*`) keep their level as generated C# data (`Level.cs`: wall rectangles, vines, spikes,
