@@ -170,7 +170,23 @@ class SlimeJumpLevelangSampleTests(unittest.TestCase):
         self.assertFalse(any(p.tile.has("solid") or p.tile.has("hazard") or p.tile.has("item") for l in self.level.layers for p in l.placements))
 
     def test_scripts_are_there(self):
-        self.assertEqual({p.name for p in SAMPLE.glob("*.cs")}, {p.name for p in SAMPLES[0].parent.glob("*.cs")})
+        """SlimeJump's scripts, plus the drawing of the layers (Scenery, its baked data, Viewer). Only Game.cs and Cfg.cs differ from SlimeJump's: they carry the switch that turns the viewer on."""
+        extra = {"Scenery.cs", "SceneryData.cs", "Viewer.cs"}
+        self.assertEqual({p.name for p in SAMPLE.glob("*.cs")} - extra, {p.name for p in SAMPLES[0].parent.glob("*.cs")})
+        src = SAMPLES[0].parent
+        for p in SAMPLE.glob("*.cs"):
+            if p.name in extra | {"Level.cs", "Game.cs", "Cfg.cs"}:
+                continue
+            self.assertEqual(p.read_bytes(), (src / p.name).read_bytes(), p.name)
+
+    def test_the_viewer_switch_is_off_and_changes_nothing_else(self):
+        """Cfg.Draw is false: the headless run (and its hash) is SlimeJump's. Game.cs is SlimeJump's plus three lines that only run when it is true."""
+        self.assertIn("public const bool Draw = false;", (SAMPLE / "Cfg.cs").read_text(encoding="utf-8"))
+        a = (SAMPLES[0].parent / "Game.cs").read_text(encoding="utf-8").splitlines()
+        b = (SAMPLE / "Game.cs").read_text(encoding="utf-8").splitlines()
+        added = [l.strip() for l in b if l not in a]
+        self.assertEqual(sorted(added), sorted(["if (Cfg.Draw && Viewer.Init() != 0) return 3;", "if (Cfg.Draw) Viewer.Frame(frame, px, py);", "if (Cfg.Draw) Viewer.Shutdown();"]))
+        self.assertEqual([l for l in a if l not in b], [])
 
 
 class CliTests(unittest.TestCase):
