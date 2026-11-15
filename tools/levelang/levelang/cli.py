@@ -59,6 +59,19 @@ def main(argv=None) -> int:
     sc.add_argument("--seed", type=int, default=None)
     sc.add_argument("--max-px", type=int, default=128, help="longest side of a picture in the atlas (default 128)")
 
+    b = sub.add_parser("export-blender", help="export the level as Blender grease pencil objects, animated like the GIF preview, to a .blend (runs Blender headless)")
+    b.add_argument("file")
+    b.add_argument("-o", "--out", default=None, help="default: /tmp/levelang-preview.blend (the system temp folder)")
+    b.add_argument("--blender", default=None, help="the Blender executable (default: $BLENDER, `blender` on the PATH, the usual install folders)")
+    b.add_argument("--seed", type=int, default=None)
+    b.add_argument("--res", type=_view, default=(1280, 800), help="render size saved in the .blend, WxH (default 1280x800; change it in Blender any time)")
+    b.add_argument("--fps", type=int, default=24)
+    b.add_argument("--view", type=_view, default=(32, 20), help="cells the camera shows, WxH (default 32x20, like the GIF); the height is what is kept for any render size")
+    b.add_argument("--samples", type=int, default=16, help="render anti-aliasing samples (default 16)")
+    b.add_argument("--video", choices=["mp4", "png", "none"], default="mp4", help="what a render writes: an mp4, PNG frames, or leave the output as it is (default mp4)")
+    b.add_argument("--no-bot", action="store_true", help="no bot and a still camera: only the scenery moves")
+    b.add_argument("--scene-json", default=None, help="also keep the scene description that Blender is given, at this path")
+
     f = sub.add_parser("from-cs", help="convert an existing Level.cs into levelang art you can edit as a picture")
     f.add_argument("file")
     f.add_argument("-o", "--out", default=None, help="default: level.lvl next to the Level.cs")
@@ -107,6 +120,17 @@ def main(argv=None) -> int:
             f.write("\n")
         lv = data["levels"][0]
         print(f"wrote {out}: a {len(lv['rows'][0])}x{len(lv['rows'])} grid, {len(lv['layers'])} layers, {len(data['images'])} images, {len(data['sprites'])} tile sprites")
+        return 0
+    if a.cmd == "export-blender":
+        from .export.blender import DEFAULT_OUT, BlenderError, export_blender
+
+        try:
+            info = export_blender(level, a.out or DEFAULT_OUT, blender=a.blender, name=os.path.splitext(os.path.basename(a.file))[0], res=a.res, fps=a.fps, view=a.view,
+                                  samples=a.samples, video=a.video, play=not a.no_bot, keep_scene=a.scene_json, log=lambda m: print(m, file=sys.stderr))
+        except BlenderError as e:
+            print("levelang:", e, file=sys.stderr)
+            return 1
+        print(f"wrote {info['path']}: {info['seconds']} s at {info['fps']} fps ({info['frames']} frames), {info['objects']} objects, {info['strokes']} strokes")
         return 0
     if a.cmd == "export-scenery":
         from .export.scenery import scenery, to_csharp
