@@ -46,12 +46,28 @@ bot's route is the one it knows. Sand is the rock that has air above it; change 
 
 ```sh
 python3 tools/levelang export-cs Samples/SlimeJumpLevelang/level.lvl -o Samples/SlimeJumpLevelang/Level.cs --layers-from Samples/SlimeJump/Level.cs
+python3 tools/levelang export-scenery Samples/SlimeJumpLevelang/level.lvl                # SceneryData.cs: the layers and the skin, baked for the game to draw
 python3 tools/levelang gif Samples/SlimeJumpLevelang/level.lvl --view 32x20 --tile 16 --fps 10 -o Samples/SlimeJumpLevelang/level.gif     # needs: pip install cairosvg
 ```
 
 `--layers-from` copies `LayerRows()` (the layer collision rules) from the game's own `Level.cs`; everything else in the file is the schema the scripts expect. What each
 tile word means, and what the exporter checks (one spawn, one goal, shooters must be `solid`, nothing outside `meta(width, height)`), is in [tools/levelang](../../tools/levelang).
-`python3 -m unittest discover -s tools/levelang/tests -t tools/levelang` fails if `Level.cs` is out of date with `level.lvl`.
+`python3 -m unittest discover -s tools/levelang/tests -t tools/levelang` fails if `Level.cs` or `SceneryData.cs` is out of date with `level.lvl`.
+
+## Drawing the layers in the game
+
+`Level.cs` is only the physics (cells). The parallax layers and the smooth skin are pictures, so the game draws them separately: `export-scenery` packs every picture into one
+atlas (255 colours + air, run-length encoded) and writes it, with the layers' items, as `SceneryData.cs`. `Scenery.cs` decodes it into one `GFX.Texture` (linear filter) and draws
+it with `GFX.Triangles`, the way the editor's viewport does (`prowl_editor/parallax.py`: parallax, swimming fish, bobbing jellyfish, swaying kelp as sheared strips; a test checks a
+transcription of `Scenery.cs` against it). `Viewer.cs` draws the frame in the order the picture needs: layers behind and the skin, the actors as plain coloured boxes, the lasso, then
+the foreground layer. Meshes are drawn over the sprite batch, so the viewer uses meshes only.
+
+It is off: `Cfg.Draw` is `false` and the run is `SlimeJump`'s headless one. Set it to `true` and the same run also writes `frame_0000.ppm`, `frame_0001.ppm`, ... (10 per second of
+the game, at most 600), the way `Samples/Draw2D` does.
+
+Not run: no dotnet and no engine library were available where this was written, so `Scenery.cs` and `Viewer.cs` were never compiled. Two things to check first when you build it:
+the 57,000-entry array initializers in `SceneryData.cs` (the translator accepts them for fields; this is by far the largest it has been given) and `haze`, which is a tint here
+(multiplied, so it darkens as well as fogs), not the preview's mix toward the colour.
 
 ## Run it
 

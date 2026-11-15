@@ -2,6 +2,7 @@
 static class Cfg
 {
     public const float Dt = 0.01f;
+    public const bool Draw = false;               // true: Game.Main also draws the level (Viewer.cs) and writes frame_NNNN.ppm; false: the headless simulation only
     public const float Gravity = -25f;
     public const float KillPlaneMargin = 12f;
     public const float MoveSpeed = 17.5f;

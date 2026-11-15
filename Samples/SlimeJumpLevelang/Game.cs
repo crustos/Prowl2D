@@ -144,11 +144,13 @@ static class Game
         int firstJump = -1;
         float maxX = Level.SpawnX();
         float maxY = Level.SpawnY();
+        if (Cfg.Draw && Viewer.Init() != 0) return 3;
         for (int frame = 0; frame < MaxFrames && !Shared.Won; frame++)
         {
             Scripts.Tick(scene, Cfg.Dt);
             float px = player.WorldX();
             float py = player.WorldY();
+            if (Cfg.Draw) Viewer.Frame(frame, px, py);
             if (px > maxX) maxX = px;
             if (py > maxY) maxY = py;
             if (Shared.PlayerClimbing && firstClimb < 0) firstClimb = frame;
@@ -174,6 +176,7 @@ static class Game
         Console.WriteLine("won=" + won + " frame=" + wonFrame + " deaths=" + Shared.Deaths + " gems=" + Shared.Gems + " enemies=" + Shared.EnemyCount() + " slain=" + slain + " crumbled=" + Shared.CrumbledCount());
         Console.WriteLine("first jump frame=" + firstJump + " first climb frame=" + firstClimb);
         Console.WriteLine("max x*1000=" + Milli(maxX) + " max y*1000=" + Milli(maxY) + " end x*1000=" + Milli(player.WorldX()) + " y*1000=" + Milli(player.WorldY()));
+        if (Cfg.Draw) Viewer.Shutdown();
         return won == 1 ? 0 : 1;
     }
 }
