@@ -53,6 +53,12 @@ def main(argv=None) -> int:
     q.add_argument("--ppc", type=int, default=32, help="pixels per cell of the layer images (default 32)")
     q.add_argument("--tile", type=int, default=16, help="pixels of the grid's pixel-art tile sprites (default 16)")
 
+    sc = sub.add_parser("export-scenery", help="bake the layers and the skin into SceneryData.cs, which the game's Scenery.cs draws with GFX.Triangles")
+    sc.add_argument("file")
+    sc.add_argument("-o", "--out", default=None, help="default: SceneryData.cs next to the .lvl")
+    sc.add_argument("--seed", type=int, default=None)
+    sc.add_argument("--max-px", type=int, default=128, help="longest side of a picture in the atlas (default 128)")
+
     f = sub.add_parser("from-cs", help="convert an existing Level.cs into levelang art you can edit as a picture")
     f.add_argument("file")
     f.add_argument("-o", "--out", default=None, help="default: level.lvl next to the Level.cs")
@@ -101,6 +107,15 @@ def main(argv=None) -> int:
             f.write("\n")
         lv = data["levels"][0]
         print(f"wrote {out}: a {len(lv['rows'][0])}x{len(lv['rows'])} grid, {len(lv['layers'])} layers, {len(data['images'])} images, {len(data['sprites'])} tile sprites")
+        return 0
+    if a.cmd == "export-scenery":
+        from .export.scenery import scenery, to_csharp
+
+        data = scenery(level, os.path.splitext(os.path.basename(a.file))[0], max_px=a.max_px, warn=lambda m: print(m, file=sys.stderr))
+        out = a.out or os.path.join(os.path.dirname(os.path.abspath(a.file)), "SceneryData.cs")
+        with open(out, "w", encoding="utf-8", newline="\n") as f:
+            f.write(to_csharp(data, os.path.basename(a.file)))
+        print(f"wrote {out}: atlas {data['atlas_w']}x{data['atlas_h']}, {len(data['runs'])} runs, {len(data['layers'])} layers, {len(data['items'])} items")
         return 0
     if a.cmd == "json":
         text = json.dumps(level.to_dict(), ensure_ascii=False, indent=1)
