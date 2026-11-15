@@ -11,6 +11,7 @@
 ##     python3 tools/levelang export-cs Samples/SlimeJumpLevelang/level.lvl \
 ##         -o Samples/SlimeJumpLevelang/Level.cs --layers-from Samples/SlimeJump/Level.cs
 ##     python3 tools/levelang export-scenery Samples/SlimeJumpLevelang/level.lvl        # SceneryData.cs: the layers and skin, drawn by Scenery.cs
+##     python3 tools/levelang export-blender Samples/SlimeJumpLevelang/level.lvl        # /tmp/levelang-preview.blend: grease pencil, animated
 ##
 ## and previewed with:   python3 tools/levelang gif Samples/SlimeJumpLevelang/level.lvl --view 32x20 --tile 16 --fps 10 -o Samples/SlimeJumpLevelang/level.gif
 

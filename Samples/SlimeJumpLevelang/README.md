@@ -47,6 +47,7 @@ bot's route is the one it knows. Sand is the rock that has air above it; change 
 ```sh
 python3 tools/levelang export-cs Samples/SlimeJumpLevelang/level.lvl -o Samples/SlimeJumpLevelang/Level.cs --layers-from Samples/SlimeJump/Level.cs
 python3 tools/levelang export-scenery Samples/SlimeJumpLevelang/level.lvl                # SceneryData.cs: the layers and the skin, baked for the game to draw
+python3 tools/levelang export-blender Samples/SlimeJumpLevelang/level.lvl               # /tmp/levelang-preview.blend: grease pencil, animated, render it in Blender
 python3 tools/levelang gif Samples/SlimeJumpLevelang/level.lvl --view 32x20 --tile 16 --fps 10 -o Samples/SlimeJumpLevelang/level.gif     # needs: pip install cairosvg
 ```
 
