@@ -147,6 +147,38 @@ and the same spawn, goal, size, entities and wall rectangles (only the order of 
 hazards some distance). That's the *swim* mode used by the underwater level. A platformer mode (gravity, jumps)
 is the natural next piece, since the Mario-style sample needs it.
 
+## Blender: grease pencil, animated like the GIF
+
+```sh
+python3 tools/levelang export-blender Samples/SlimeJumpLevelang/level.lvl            # -> /tmp/levelang-preview.blend
+blender -b /tmp/levelang-preview.blend -a                                            # render it: an mp4 next to the .blend
+```
+
+Blender is run headless (`blender -b --python ...`; found on the PATH, `$BLENDER`, `--blender PATH` or the usual install folders; with none, the `bpy` Python module is used if it is
+installed). Open the `.blend` and change anything, or render it at any size: the default look is meant to be right as it is (orthographic camera, flat SVG colours, 24 fps, mp4).
+Needs Blender 4.3 or newer (grease pencil v3); written and tested against 5.3.
+
+**Our own SVG reader.** Blender's SVG importer is not used. `levelang/svgvec.py` reads each tile's SVG (paths with every command including arcs, shapes, transforms, `style`, opacity,
+colours, linear and radial gradients with stops and `href`) into polylines with a fill and a stroke. It uses the standard library only. It says so (and carries on) for what it does not read:
+clip paths, masks, filters, text, dashes. `export/blender_scene.py` turns the level into a plain scene description (JSON, `--scene-json PATH` keeps it) and `export/blender_import.py`,
+which runs inside Blender, builds it.
+
+**What the .blend holds.**
+- `levelang_camera`: orthographic, the height of `--view` (default 32x20 cells, so any render size shows the same height), keyframed to follow the bot, clamped to the level, exactly the GIF's.
+- `levelang_bot`: keyframed along the same route (the bot's plan, speed and holds are the GIF's), turning to face where it goes.
+- Terrain, standing scenery and every parallax layer as grease pencil objects, stacked far to near. Each parallax layer hangs on an empty `parallax/NAME` whose position is a *driver* on the
+  camera, so the depth also works when you move the camera yourself.
+- The smooth skin: the covered tiles' own pictures on a layer that is masked by the skin's outline shape, plus the outline.
+- Moving things (`swim`, `bob`, `sway`, collected items) are copies of one shared drawing: swimming and bobbing are keyframes (a fish turns over at each end), a gem disappears when the bot
+  reaches it, and a swaying plant is a loop of 24 drawings, each copy offset by its own phase with a Time Offset modifier.
+- `levelang_backdrop`: the level's sky gradient. Colours are not tone-mapped (the view transform is Standard), a layer's `haze` and `alpha` are baked into its colours.
+
+Options: `-o FILE`, `--res WxH` (the render size saved in the file), `--fps`, `--view WxH`, `--samples`, `--video mp4|png|none`, `--no-bot` (a still camera, only the scenery moves), `--seed`.
+
+**Limits.** A grease pencil fill is one flat colour, so a gradient is cut into 8 bands (opaque ones overlap so no seams show; ones with transparent stops are cut apart). An emoji with no SVG is a
+coloured placeholder and a text `pattern` tile is left out (both are raster or font things); the exporter warns once for each. Dashes are drawn solid. Items that are collected hide for good when the bot reaches
+them (no respawn). The bot is the one in the GIF: a single route.
+
 ## Layout
 
-`parser.py` text → Python · `transform.py` AST pass · `runtime.py` Level IR and helpers · `bot.py` · `render/` (sprites, SVG, GIF) · `cli.py`
+`parser.py` text → Python · `transform.py` AST pass · `runtime.py` Level IR and helpers · `bot.py` · `render/` (sprites, SVG, GIF) · `svgvec.py` our SVG reader · `export/` (Level.cs, editor project, scenery data, `blender*.py`) · `cli.py`
