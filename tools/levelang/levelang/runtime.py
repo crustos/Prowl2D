@@ -16,6 +16,16 @@ from .transform import transform
 # ----------------------------------------------------------------------------- tile attributes
 
 
+class Call:
+    """The arguments of an attribute call that has keywords (``kmj("face.kmj", "talk", fps=6)``)."""
+
+    def __init__(self, args: tuple, kwargs: dict) -> None:
+        self.args, self.kwargs = args, kwargs
+
+    def __repr__(self) -> str:
+        return f"Call({self.args!r}, {self.kwargs!r})"
+
+
 class Attr:
     """``solid``, ``fill.blue``, ``swim(6)``, ``size(1, 3)`` all evaluate to an Attr(kind, value)."""
 
@@ -27,7 +37,9 @@ class Attr:
             raise AttributeError(name)
         return Attr(self.kind, name)
 
-    def __call__(self, *args: Any) -> "Attr":
+    def __call__(self, *args: Any, **kwargs: Any) -> "Attr":
+        if kwargs or self.kind == "kmj":   # kmj("file.kmj", "shape", look=(1, 0)): keep the call as it is
+            return Attr(self.kind, Call(args, kwargs))
         return Attr(self.kind, args[0] if len(args) == 1 else args)
 
     def __repr__(self) -> str:
@@ -40,7 +52,7 @@ FLAGS = ("solid", "hazard", "item", "spawn", "goal", "bg", "fg", "climb", "save"
 ANIMS = ("sway", "bob", "swim")
 # valued attributes that end up in Tile.params: enemy(kind), shooter(dx, dy), at(ax, ay) = where in its cell an entity stands
 PARAM_ATTRS = ("enemy", "shooter", "at")
-ATTR_NAMES = FLAGS + ANIMS + PARAM_ATTRS + ("fill", "stroke", "svg", "size")
+ATTR_NAMES = FLAGS + ANIMS + PARAM_ATTRS + ("fill", "stroke", "svg", "size", "kmj")
 
 
 class Tile:
@@ -51,6 +63,8 @@ class Tile:
         self.stroke: Any = None
         self.pattern: list[str] | None = None
         self.svg: str | None = None
+        self.frames: list[str] | None = None   # kmj tiles with several frames: SVGs cycled at `fps`
+        self.fps: float = 6.0
         self.size: tuple = (1, 1)
         self.flags: set[str] = set()
         self.anim: dict[str, Any] = {}  # 'sway' / 'bob' / 'swim' -> param or None
@@ -74,6 +88,15 @@ class Tile:
         return flag in self.flags
 
     @property
+    def animated(self) -> bool:
+        return bool(self.anim) or bool(self.frames and len(self.frames) > 1)
+
+    def frame_svg(self, t: float | None = None) -> str | None:
+        if self.frames and len(self.frames) > 1 and t is not None:
+            return self.frames[int(t * self.fps) % len(self.frames)]
+        return self.svg
+
+    @property
     def layer(self) -> int:
         return -1 if "bg" in self.flags else 1 if "fg" in self.flags else 0
 
@@ -88,6 +111,8 @@ class Tile:
             d["params"] = {k: list(v) if isinstance(v, tuple) else v for k, v in self.params.items()}
         if self.size != (1, 1):
             d["size"] = list(self.size)
+        if self.frames and len(self.frames) > 1:
+            d["frames"], d["fps"] = self.frames, self.fps
         return d
 
     def __repr__(self) -> str:
@@ -189,6 +214,7 @@ class Level:
         self.meta: dict[str, Any] = {}
         self.layers: list[Layer] = []          # parallax layers, back to front within the "behind" and the "over" groups
         self.skins: list[Skin] = []            # smooth outlines over blocky tiles
+        self.captions: list[dict] = []         # the story: say() / title() lines shown when the player passes x
         self._index: dict | None = None
 
     def add(self, tile: Tile, x: int, y: int, size=None, flip=False) -> None:
@@ -226,6 +252,7 @@ class Level:
             "meta": self.meta,
             **({"layers": [l.to_dict() for l in self.layers]} if self.layers else {}),
             **({"skins": [k.to_dict() for k in self.skins]} if self.skins else {}),
+            **({"captions": self.captions} if self.captions else {}),
         }
 
 
@@ -327,6 +354,8 @@ class Runtime:
             elif k == "svg":
                 if v is not True:
                     svg = self._load_svg(v)
+            elif k == "kmj":
+                self._kmj(t, v)
             elif k in FLAGS:
                 t.flags.add(k)
             elif k in ANIMS:
@@ -335,10 +364,23 @@ class Runtime:
                 t.size = tuple(v) if isinstance(v, (tuple, list)) else (int(v), int(v))
             else:
                 t.params[k] = v
-        t.svg = svg
+        t.svg = svg if svg is not None else t.svg
         if pattern and not t.fill:
             t.fill = "dimgray"
         return t
+
+    def _kmj(self, t: Tile, v: Any) -> None:
+        """``kmj("file.kmj", "shape-or-list", fps=6, **args)``: SVG (or frames) drawn by kaomojilang."""
+        from . import kmj
+        args, kw = (v.args, dict(v.kwargs)) if isinstance(v, Call) else ((v,) if isinstance(v, str) else tuple(v), {})
+        if not args or not isinstance(args[0], str):
+            raise TypeError(f"kmj needs a file name: kmj(\"face.kmj\", \"shape\"), got {v!r}")
+        t.fps = float(kw.pop("fps", 6))
+        margin = float(kw.pop("margin", 1))
+        path = args[0] if os.path.isabs(args[0]) else os.path.join(self.basedir, args[0])
+        target = args[1] if len(args) > 1 else None
+        frames = kmj.render(path, target, args[2:], kw, margin=margin)
+        t.svg, t.frames = frames[0], frames
 
     def _load_svg(self, src: str) -> str:
         if "<svg" in src:
@@ -416,7 +458,16 @@ class Runtime:
             self.level.skins.append(sk)
             return sk
 
+        def say(x, text, who=None, seconds=3.5):
+            """``say(14, "Hello!", who="Slime")``: a line of dialogue, shown (and printed by the game) when the player gets to column x."""
+            self.level.captions.append({"kind": "say", "x": float(x), "text": str(text), "who": who, "seconds": float(seconds)})
+
+        def title(x, text, sub=None, seconds=4.5):
+            """``title(0, "Chapter 1", "A quiet meadow")``: a chapter card, same trigger as say()."""
+            self.level.captions.append({"kind": "title", "x": float(x), "text": str(text), "sub": sub, "seconds": float(seconds)})
+
         return {
+            "say": say, "title": title,
             "seed": seed, "background": background, "legend": legend, "meta": meta, "layer": layer, "skin": skin,
             "rand": self.rng.random, "randint": self.rng.randint, "choice": self.rng.choice,
             "chance": lambda p: self.rng.random() < p,

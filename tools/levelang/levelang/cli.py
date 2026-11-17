@@ -72,6 +72,11 @@ def main(argv=None) -> int:
     b.add_argument("--no-bot", action="store_true", help="no bot and a still camera: only the scenery moves")
     b.add_argument("--scene-json", default=None, help="also keep the scene description that Blender is given, at this path")
 
+    st = sub.add_parser("export-story", help="write Story.cs: the say() / title() lines of the level, for the game to print as the player reaches them")
+    st.add_argument("file")
+    st.add_argument("-o", "--out", default=None, help="default: Story.cs next to the file")
+    st.add_argument("--seed", type=int, default=None)
+
     f = sub.add_parser("from-cs", help="convert an existing Level.cs into levelang art you can edit as a picture")
     f.add_argument("file")
     f.add_argument("-o", "--out", default=None, help="default: level.lvl next to the Level.cs")
@@ -108,6 +113,14 @@ def main(argv=None) -> int:
         for w in warnings:
             print("levelang: warning:", w, file=sys.stderr)
         print(f"wrote {out}")
+        return 0
+    if a.cmd == "export-story":
+        from .export import to_story_cs
+
+        out = a.out or os.path.join(os.path.dirname(os.path.abspath(a.file)), "Story.cs")
+        with open(out, "w", encoding="utf-8", newline="\n") as f:
+            f.write(to_story_cs(level, os.path.basename(a.file)))
+        print(f"wrote {out}: {len(level.captions)} lines")
         return 0
     if a.cmd == "export-project":
         from .export import to_project
