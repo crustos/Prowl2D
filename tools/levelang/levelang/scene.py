@@ -94,6 +94,18 @@ class Actor:
 
     def position(self, t: float) -> tuple:
         x, y = self.x, self.y
+        if len(self.moves) > 24:        # thousands of hops in a long dance: moves are ordered and never overlap, so bisect
+            ks = getattr(self, "_move_keys", None)
+            if ks is None or len(ks) != len(self.moves):
+                ks = self._move_keys = [m.t0 for m in self.moves]
+            i = bisect.bisect_right(ks, t) - 1
+            if i < 0:
+                return x, y
+            m = self.moves[i]
+            if m.ease == "cut" or t >= m.t1:
+                return m.x1, m.y1
+            u = ease((t - m.t0) / (m.t1 - m.t0), m.ease)
+            return lerp(m.x0, m.x1, u), lerp(m.y0, m.y1, u) - m.hop * 4 * u * (1 - u)
         for m in self.moves:
             if m.ease == "cut":            # a jump: it is there from t0 on
                 if t < m.t0:
