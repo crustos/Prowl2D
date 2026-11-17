@@ -8,6 +8,7 @@ from PIL import Image, ImageChops
 
 from .. import bot as botmod
 from ..runtime import Level, Placed
+from .captions import draw_caption
 from .skin import skin_loops, skin_mask, skin_outline
 from .sprites import Sprites, color, default_bot_sprite
 
@@ -161,7 +162,7 @@ def render_gif(
             spawns.append(p)
         elif t.has("item"):
             items.append(p)
-        elif t.anim:
+        elif t.animated:
             dynamic.append(p)
         else:
             sk = next((k for k in level.skins if k.hide and k.covers(t)), None)
@@ -186,8 +187,8 @@ def render_gif(
     # ---- parallax layers: a static picture each, and the placements that move ----
     layers = []
     for lay in sorted(level.layers, key=lambda l: l.parallax):  # far to near: the least parallax is drawn first
-        stat = [p for p in lay.placements if not p.tile.anim]
-        dyn = [p for p in lay.placements if p.tile.anim]
+        stat = [p for p in lay.placements if not p.tile.animated]
+        dyn = [p for p in lay.placements if p.tile.animated]
         img = ox = oy = None
         if stat:
             boxes = []
@@ -212,6 +213,17 @@ def render_gif(
         bot_img = sprites.get(spawns[0].tile, 0, 0)
     bs = max(int(px * bot_scale), 1)
     bot_img = bot_img.resize((bs, bs), Image.LANCZOS)
+    bot_tile = spawns[0].tile if spawns and spawns[0].tile.frames and len(spawns[0].tile.frames) > 1 else None
+    bot_cache: dict = {}
+
+    def bot_at(t):
+        """The bot's picture at time t: a kmj spawn tile with frames animates."""
+        if bot_tile is None:
+            return bot_img
+        spr = sprites.get(bot_tile, 0, 0, None, t)
+        if id(spr) not in bot_cache:
+            bot_cache[id(spr)] = spr.resize((bs, bs), Image.LANCZOS)
+        return bot_cache[id(spr)]
     bot_off = (bs - px) / 2  # sprite is bigger than a tile, centred on its cell
     pts = plan.points
     cum = [0.0]
@@ -219,16 +231,44 @@ def render_gif(
         cum.append(cum[-1] + math.dist(a, b))
     travel = cum[-1] / speed if len(pts) > 1 else 0.0
     h0, h1 = hold
+    # the story: the bot stops where a caption starts and stays for its `seconds`, so every line is read
+    stops = []  # (path distance where it starts, caption)
+    if play and pts and level.captions:
+        for cap in sorted(level.captions, key=lambda c: c["x"]):
+            j = next((n for n, (cx_, _) in enumerate(pts) if cx_ + 0.5 >= cap["x"]), None)
+            if j is not None:
+                stops.append((cum[j], cap))
+    pauses = []  # (path distance, start time, duration): filled in below
+    t_cursor, s_cursor = h0, 0.0
+    for s_at, cap in stops:
+        t_cursor += max(0.0, s_at - s_cursor) / speed
+        s_cursor = max(s_cursor, s_at)
+        pauses.append((s_cursor, t_cursor, cap["seconds"], cap))
+        t_cursor += cap["seconds"]
+    story_time = sum(d for _, _, d, _ in pauses)
     if play:
-        total = h0 + travel + h1
+        total = h0 + travel + story_time + h1
     else:  # no bot: one seamless loop of the scenery
         swims = [p.tile.anim["swim"] for p in dynamic if "swim" in p.tile.anim]
         swims += [p.tile.anim["swim"] for L in layers for p in L["dyn"] if "swim" in p.tile.anim]
         total = max([4.8] + [_swim_period(v) for v in swims])
     n_frames = max(2, int(total * fps))
 
+    def path_distance(t):
+        """How far along the path the bot is at time t (it waits at each caption)."""
+        s, last_t = 0.0, h0
+        if t <= h0:
+            return 0.0
+        for s_at, t_start, dur, _ in pauses:
+            if t < t_start:
+                return min(s + (t - last_t) * speed, cum[-1])
+            s, last_t = s_at, t_start + dur
+            if t < last_t:
+                return min(s, cum[-1])
+        return min(s + (t - last_t) * speed, cum[-1])
+
     def raw_pos(t):
-        s = min(max(t - h0, 0.0), travel) * speed
+        s = path_distance(t)
         if len(pts) < 2:
             return (pts[0][0] + 0.5, pts[0][1] + 0.5) if pts else (0, 0)
         lo, hi = 0, len(cum) - 1
@@ -240,7 +280,7 @@ def render_gif(
         return (pts[lo][0] + (pts[hi][0] - pts[lo][0]) * f + 0.5, pts[lo][1] + (pts[hi][1] - pts[lo][1]) * f + 0.5)
 
     track = _smooth([raw_pos(i / fps) for i in range(n_frames)], 3)
-    collect_t = {id(it): h0 + cum[idx] / speed for idx, it in plan.collects}
+    collect_t = {id(it): h0 + cum[idx] / speed + sum(d for s_at, _, d, _ in pauses if s_at <= cum[idx]) for idx, it in plan.collects}
 
     # ---- camera ----
     if view:
@@ -288,12 +328,14 @@ def render_gif(
         if L["img"] is not None:
             _over(out, L["img"], L["ox"] - sx, L["oy"] - sy)
         for p in L["dyn"]:
-            spr = sprites.get(p.tile, p.x, p.y, p.size)
+            spr = sprites.get(p.tile, p.x, p.y, p.size, t)
             vk = (id(lay), id(spr))
             if vk not in veil_cache:
                 veil_cache[vk] = _veil(spr, lay.haze, lay.alpha)
             spr, dx, dy = animated(p, veil_cache[vk], t)
             _over(out, spr, (p.x - x0) * px + dx - sx, (p.y - y0) * px + dy - sy)
+
+    story = [(t_start, cap) for _, t_start, _, cap in pauses]
 
     def frame(i: int) -> Image.Image:
         t = i / fps
@@ -312,7 +354,7 @@ def render_gif(
                 draw_layer(out, L, t, left, topc)
         out.alpha_composite(static.crop(win))
         for p in dynamic:
-            spr, dx, dy = animated(p, sprites.get(p.tile, p.x, p.y, p.size), t, below_cache.get(id(p), 0))
+            spr, dx, dy = animated(p, sprites.get(p.tile, p.x, p.y, p.size, t), t, below_cache.get(id(p), 0))
             _over(out, spr, (p.x - x0) * px + dx - left, (p.y - y0) * px + dy - topc)
         for it in items:
             if t < collect_t.get(id(it), 1e9):
@@ -323,12 +365,15 @@ def render_gif(
             nxt = track[min(i + 2, len(track) - 1)]
             face_left = nxt[0] < bx - 0.02 or (abs(nxt[0] - bx) <= 0.02 and getattr(frame, "left", False))
             frame.left = face_left
-            spr = bot_img.transpose(Image.FLIP_LEFT_RIGHT) if face_left else bot_img
+            pic = bot_at(t)
+            spr = pic.transpose(Image.FLIP_LEFT_RIGHT) if face_left else pic
             wob = round(math.sin(2 * math.pi * t / 1.1) * 0.06 * px)
             _over(out, spr, (bx - x0 - 0.5) * px - bot_off - left, (by - y0 - 0.5) * px - bot_off + wob - topc)
         for L in layers:
             if L["layer"].over:
                 draw_layer(out, L, t, left, topc)
+        for t0, cap in story:
+            draw_caption(out, cap, t - t0)
         return out.convert("RGB")
 
     # ---- encode (one shared palette, otherwise gradients flicker) ----

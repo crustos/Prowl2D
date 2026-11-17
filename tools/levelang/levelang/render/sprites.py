@@ -66,15 +66,17 @@ class Sprites:
             self._warned.add(key)
             print("levelang:", msg, file=sys.stderr)
 
-    def get(self, tile, wx: int = 0, wy: int = 0, size=None) -> Image.Image:
+    def get(self, tile, wx: int = 0, wy: int = 0, size=None, t=None) -> Image.Image:
+        """The sprite of a tile; `t` (seconds) picks the frame of a tile with several (kmj tiles)."""
         pat = tile.pattern
-        key = (id(tile), wx % len(pat[0]) if pat and pat[0] else 0, wy % len(pat) if pat else 0, tuple(size) if size else None)
+        svg = tile.frame_svg(t)
+        key = (id(tile), wx % len(pat[0]) if pat and pat[0] else 0, wy % len(pat) if pat else 0, tuple(size) if size else None, id(svg))
         img = self._cache.get(key)
         if img is None:
-            img = self._cache[key] = self._build(tile, int(wx), int(wy), size)
+            img = self._cache[key] = self._build(tile, int(wx), int(wy), size, svg)
         return img
 
-    def _build(self, tile, wx, wy, size=None) -> Image.Image:
+    def _build(self, tile, wx, wy, size=None, svg=None) -> Image.Image:
         px = self.px
         tw, th = size or tile.size
         w, h = max(1, int(tw * px)), max(1, int(th * px))
@@ -86,9 +88,10 @@ class Sprites:
         if tile.pattern:
             self._pattern(img, tile, wx, wy)
             drawn = True
-        if tile.svg:
+        svg = svg or tile.svg
+        if svg:
             try:
-                img.alpha_composite(rasterize(tile.svg, w, h))
+                img.alpha_composite(rasterize(svg, w, h))
                 drawn = True
             except SvgUnavailable as e:
                 self._warn("svg", str(e))
