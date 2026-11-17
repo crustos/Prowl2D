@@ -1,0 +1,23 @@
+'''
+A bat: a small round body (0..3), two jagged wings (11..15 and 21..25) that flap, ears (30, 34), red eyes and fangs (60).
+'''
+
+def bat(fill={0:indigo, 11:slateblue, 21:slateblue, 30:indigo, 34:indigo, 40:red, 50:red, 60:white}, stroke={0:black, 11:black, 21:black, 30:black, 34:black, 60:black}, smooth=0.8, sizes={40:(2, 2), 50:(2, 2)}):
+              31      35
+
+      12    30  32  34  36    22
+                  0
+                40  50
+      13    11          21  23
+              3       1
+
+    14  15                25    24
+                60  62
+                  2
+                  61
+
+def flap(up=0):
+    return bat(shift={11: (0.6 * up, -2.0 * up), 21: (-0.6 * up, -2.0 * up)}, rotate={11: -18 * up, 21: 18 * up}, scale={11: (1, 1 - 0.3 * up), 21: (1, 1 - 0.3 * up)})
+
+wings = [flap(u) for u in [1, 0.4, -0.5, -1, -0.5, 0.4]]
+rest  = flap(0)
