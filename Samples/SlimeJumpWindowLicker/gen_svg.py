@@ -631,10 +631,95 @@ def closeups_gen():
         save(f"hero_roll_{i:02d}.svg", eyeroll(i))
 
 
+# ================================================================ the look of the video: walls of faces, a wall of televisions, a spinning ring of faces, billboards and balloons
+WALL_BG = [("#ff3cac", "#ffe45a"), ("#3cdcff", "#ff9a4a"), ("#9cff7a", "#ff3cac"), ("#ffe45a", "#6a3cff")]
+
+
+def tiny_face(cx, cy, s=1.0, flip=False, open_=0.5, skin=GREEN):
+    return blob(cx, cy, 24 * s, 19 * s, skin, n=10, wob=0.03, seed=int(cx + cy) % 9, flat=0.1, sw=2.2) + grin(cx, cy + 1 * s, s=0.95 * s, open_=open_, shades=True, eyes_y=-6.5)
+
+
+def facewall(k, w=320, h=180):
+    c1, c2 = WALL_BG[k % 4]
+    b = [rect(0, 0, w, h, c1, sw=0)]
+    for r in range(4):
+        for c in range(6):
+            x = 27 + c * 53 + (26 if (r + k) % 2 else 0)
+            y = 22 + r * 46
+            if (r + c + k) % 3 == 0:
+                b.append(circle(x, y, 22, c2, sw=0, extra='opacity="0.65"'))
+            b.append(tiny_face(x, y, 0.95, open_=(0.2, 0.6, 1.0)[(r * 2 + c + k) % 3], skin=("#8fe388", "#b6f2a0", "#7fd0a0")[(r + c) % 3]))
+    return svg(w, h, "".join(b))
+
+
+def tvwall(k, w=320, h=180):
+    b = [rect(0, 0, w, h, "#1a1030", sw=0)]
+    r = random.Random(k * 5 + 1)
+    for row in range(2):
+        for col in range(3):
+            x, y = 12 + col * 104, 10 + row * 84
+            b.append(rect(x, y, 96, 76, "#3a3a4a", r=9, sw=3))
+            if (row * 3 + col + k) % 4 == 0:
+                b.append(rect(x + 8, y + 8, 80, 56, "#555566", r=5, sw=0))
+                for _ in range(14):
+                    b.append(f'<rect x="{x + 8}" y="{f(y + 8 + r.random() * 52)}" width="{f(20 + r.random() * 60)}" height="3" fill="{r.choice(["#fff", "#ff3cac", "#3cdcff"])}"/>')
+            else:
+                col_ = ("#ffe45a", "#3cdcff", "#ff3cac", "#9cff7a")[(row + col + k) % 4]
+                b.append(rect(x + 8, y + 8, 80, 56, col_, r=5, sw=0))
+                b.append(tiny_face(x + 48, y + 38, 0.95, open_=(0.2, 0.6, 1.0)[(col + k) % 3]))
+            b.append(circle(x + 84, y + 70, 2.4, "#ff3c3c" if (k + col) % 2 else "#444", sw=0))
+    return svg(w, h, "".join(b))
+
+
+def spinring(k, w=320, h=180):
+    ang0 = k * 7.5
+    b = [rect(0, 0, w, h, "#1c0a3a", sw=0)]
+    for i in range(6, 0, -1):
+        b.append(f'<ellipse cx="160" cy="90" rx="{i * 30}" ry="{i * 17}" fill="{["#ff3cac", "#6a3cff", "#3cdcff", "#ffe45a", "#9cff7a", "#ff8a2a"][(i + k) % 6]}" opacity="0.5"/>')
+    for i in range(8):
+        a = math.radians(ang0 + i * 45)
+        b.append(tiny_face(160 + math.cos(a) * 110, 90 + math.sin(a) * 58, 0.55 + 0.12 * math.sin(a * 2), open_=0.7))
+    pulse = 1.0 + 0.1 * math.sin(k * 1.05)
+    b.append(tiny_face(160, 90, 1.7 * pulse, open_=0.5 + 0.5 * math.sin(k)))
+    return svg(w, h, "".join(b))
+
+
+def billboard(k, w=100, h=70):
+    col = ("#ffe45a", "#3cdcff", "#ff3cac")[k % 3]
+    b = [rect(8, 50, 5, 20, "#6a6a7a", sw=1.8), rect(87, 50, 5, 20, "#6a6a7a", sw=1.8), rect(2, 4, 96, 50, "#2a2a3a", r=4, sw=2.4), rect(7, 9, 86, 40, col, r=2, sw=0)]
+    b.append(tiny_face(50, 30, 0.95, open_=(0.3, 0.9, 0.6)[k % 3]))
+    for x in (12, 28, 44, 60, 76, 90):
+        b.append(circle(x, 6.5, 1.6, "#fffbe8" if (x // 16 + k) % 2 else "#ffb000", sw=0))
+    return svg(w, h, "".join(b))
+
+
+def balloon(color, step, w=40, h=76):
+    sway = (-2, 2)[step % 2]
+    b = [f'<path d="M20 52 Q{20 + sway * 3} 64 {20 - sway * 2} 76" stroke="{OUT}" stroke-width="1.6" fill="none"/>',
+         blob(20, 26, 17, 22, color, n=10, wob=0.03, seed=4 + step, flat=0.0, sw=2.4),
+         poly([(20, 47), (15, 54), (25, 54)], color, sw=1.8), grin(20, 27, s=0.62, open_=0.7, shades=True, eyes_y=-6.5)]
+    b.append(circle(13, 14, 3.4, "#ffffff", sw=0, extra='opacity="0.6"'))
+    return svg(w, h, "".join(b))
+
+
+def looks_gen():
+    for i in range(4):
+        save(f"facewall_{i:02d}.svg", facewall(i))
+        save(f"tvwall_{i:02d}.svg", tvwall(i))
+    for i in range(6):
+        save(f"spinring_{i:02d}.svg", spinring(i))
+    for i in range(3):
+        save(f"billboard_{i:02d}.svg", billboard(i))
+    for ci, c in enumerate(("#ff4f87", "#ffd84a", "#3cdcff", "#9cff7a")):
+        for st in range(2):
+            save(f"balloon_{ci}_{st}.svg", balloon(c, st))
+
+
 def main():
     hero_gen()
     more_gen()
     closeups_gen()
+    looks_gen()
     face_gen()
     dancers_gen()
     dancer_face_gen()

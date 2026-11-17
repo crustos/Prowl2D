@@ -11,7 +11,7 @@
 ##     python3 Samples/SlimeJumpWindowLicker/analyze_audio.py TRACK.mp3 Samples/SlimeJumpWindowLicker/audio.json
 ##     python3 tools/levelang scene Samples/SlimeJumpWindowLicker/video.lvl --fps 8 --tile 20 --mp4 out.mp4 --audio TRACK.mp3
 
-meta(width=608, height=21)
+meta(width=704, height=21)
 background("#7fd0ff", "#ffe8c0")
 
 J = data("audio.json")
@@ -89,20 +89,25 @@ PALM = sq("palm", "palm_sway_*.svg", 6, 12, 3)
 
 ## ---------------------------------------------------------------- the sets
 place(NIL, 0, 0)
-place(NIL, 607, 0)
+place(NIL, 703, 0)
 place(NIL, 0, 20)
-place(NIL, 607, 20)
+place(NIL, 703, 20)
 place(sv("street", "street_bg.svg", 64, 21, bg), 0, 0)
 place(sv("lounge", "interior_bg.svg", 64, 21, bg), 64, 0)
 place(sv("beach", "beach_bg.svg", 64, 21, bg), 128, 0)
-ROOMS = ["hero", "pink", "blue", "lime", "lilac", "teal", "orange", "red", "purple", "sun", "static", "foam", "face"]
+ROOMS = ["hero", "pink", "blue", "lime", "lilac", "teal", "orange", "red", "purple", "sun", "static", "foam", "face", "wall", "tv", "spin"]
 for i, r in enumerate(ROOMS):
     if r == "static":
         place(mk("room_static", svgs("svg/static_*.svg", fps=14), size(32, 18), bg), 192 + 32 * i, 1.5)
+    elif r in ("wall", "tv", "spin"):
+        place(mk("room_" + r, svgs({"wall": "svg/facewall_*.svg", "tv": "svg/tvwall_*.svg", "spin": "svg/spinring_*.svg"}[r], fps={"wall": 4, "tv": 3, "spin": 9}[r]), size(32, 18), bg), 192 + 32 * i, 1.5)
     else:
         place(sv("room_" + ("red" if r == "foam" else "sun" if r == "face" else r), f"room_{'red' if r == 'foam' else 'sun' if r == 'face' else r}.svg", 32, 18, bg), 192 + 32 * i, 1.5)
 RC = {r: 208 + 32 * i for i, r in enumerate(ROOMS)}      ## the centre of each room
 ARCH = sv("arch", "arch.svg", 10, 10)
+BB = mk("billboard", svgs("svg/billboard_*.svg", fps=3), size(8, 5.6))
+for bx, by in ((68, 4.2), (114, 4.2), (135, 3.0), (183, 3.0)):
+    place(BB, bx, by)
 BRIDE = sv("bride", "bride.svg", 7, 9.2)
 
 ## ---------------------------------------------------------------- the scene
@@ -151,6 +156,10 @@ actor("ball", BALL, 134, G - 4.0)
 actor("palm1", PALM, 129, G - 12.2)
 actor("palm2", PALM, 189, G - 12.2)
 actor("cork", CORK, 150, 4.0)
+BALLOON_X = [134, 143, 152, 168, 177, 186]
+for i, bx in enumerate(BALLOON_X):
+    actor(f"bal{i}", sq(f"bal{i}", f"balloon_{i % 4}_*.svg", 2.6, 4.9, 2.5), bx, 12)
+    hide(f"bal{i}", 0)
 for nm in ("granny", "granny2", "kid", "kid2", "sun", "ball", "palm1", "palm2"):
     hide(nm, 0)
 actor("boom", BOOM, 176, G - 3.6)
@@ -464,6 +473,9 @@ def hero_zoom(t):
 def fb(t, p):
     room(t, "face")
     pose("hero_fb", t, p)
+def face_wall(t): room(t, "wall")
+def tv_wall(t): room(t, "tv")
+def spin_ring(t): room(t, "spin")
 def hero_fish(t): fb(t, "fish")
 def lit_red(t): fb(t, "red")
 def lit_blue(t): fb(t, "blue")
@@ -591,7 +603,7 @@ def champ_cu(t):
     room(t, "red")
     pose("champ_cu", t, "c%d" % min(7, int((t * 3) % 8)))
 punches(320, 405, 0.45, 0.28, 0.06)
-edit(321, 405, [lounge_wide, face_p, lounge_girls, face_y, hero_zoom, lounge_wide, lit_red, champ_cu, face_y, hero_roll, lounge_girls, hero_fish, lit_blue, xshades, lounge_wide, xgrin], 0.4, 0.8, 0.8)
+edit(321, 405, [tv_wall, spin_ring, face_wall, lounge_wide, face_p, lounge_girls, face_y, hero_zoom, lounge_wide, lit_red, champ_cu, face_y, hero_roll, lounge_girls, hero_fish, lit_blue, xshades, lounge_wide, xgrin], 0.4, 0.8, 0.8)
 for ts in (350.0, 372.0, 392.0):
     static_cut(ts, lounge_wide)
 pose("hero", 380, "slow")
@@ -618,6 +630,13 @@ def hop_all(t0, t1, every=2, amp=0.6):                  ## everyone hops on the 
             t += BEAT * every
             n += 1
 hop_all(405.4, 628, 2, 0.6)
+for i in range(6):                                          ## grin balloons drift up, again and again
+    show(f"bal{i}", 405.3)
+    t0 = 405.5 + i * 2.1
+    while t0 < 626:
+        mv(f"bal{i}", t0, t0 + 18, BALLOON_X[i] + (3 if i % 2 else -3), -3.0, ease="linear", hop=0, hard=True)
+        mv(f"bal{i}", t0 + 18.01, t0 + 18.02, BALLOON_X[i], 12.0, ease="cut", hard=True)
+        t0 += 18.1
 for k in range(40):                                      ## the beach ball goes round the crowd
     t0 = 405.5 + k * 3.6
     if t0 > 625:
@@ -635,7 +654,7 @@ def boom_cu(t):
     room(t, "purple")
     pose("boom_cu", t, "idle")
 punches(405, 510, 0.4, 0.28, 0.07)
-edit(405.5, 510, [beach_wide, face_p, beach_hero, face_y, beach_left, hero_zoom, beach_right, boom_cu, beach_sun, beach_granny, xgrin, beach_wide, lit_blue, beach_kid, hero_fish, beach_hero, champ_cu, xshades, beach_ball, lit_red, face_p, hero_roll], 0.38, 0.65, 0.75)
+edit(405.5, 510, [beach_wide, face_wall, spin_ring, tv_wall, face_p, beach_hero, face_y, beach_left, hero_zoom, beach_right, boom_cu, beach_sun, beach_granny, xgrin, beach_wide, lit_blue, beach_kid, hero_fish, beach_hero, champ_cu, xshades, beach_ball, lit_red, face_p, hero_roll], 0.38, 0.65, 0.75)
 for ts in (430.0, 462.0, 498.0):
     static_cut(ts, beach_wide)
 pose("dface_p", 405, "m4")
@@ -652,7 +671,7 @@ for k in range(int((558 - 511) / 3.2)):                     ## corks go off in s
     t0 = 511.5 + k * 3.2
     mv("cork", t0, t0 + 2.4, [150, 172, 140, 180, 160][k % 5], 4.0 + (k % 3), ease="out", hop=-7.0 - (k % 3))
     emote("hero", t0 + 0.1, EXCL, 0.8)
-edit(510.5, 560, [beach_hero, foam_cu, champ_cu, lit_red, hero_zoom, beach_left, cork_shot, xgrin, hero_fish, foam_cu, beach_wide, lit_blue, xshades, beach_right, cork_shot, face_y, hero_roll, xgrin], 0.3, 0.45, 0.6)
+edit(510.5, 560, [spin_ring, beach_hero, face_wall, tv_wall, foam_cu, champ_cu, lit_red, hero_zoom, beach_left, cork_shot, xgrin, hero_fish, foam_cu, beach_wide, lit_blue, xshades, beach_right, cork_shot, face_y, hero_roll, xgrin], 0.3, 0.45, 0.6)
 strobe(556.0, 8)
 for ts in (519.0, 531.0, 543.0, 553.0):
     static_cut(ts, beach_hero)
@@ -688,4 +707,91 @@ flash(633.2, "white", 0.6, 0.3)
 shake(632.0, CUT, 0.3)
 fade(CUT, CUT + 0.05, 0, 1, "black")
 card(636.0, "SLIMEJUMP WINDOW LICKER", "a love story", seconds=5.0)
+
+## ================================================================ THE LOOK: grain, scanlines, colour splits, glitches, wobble: what a late-90s music video does to a picture
+def fx_hits(t0, t1, name, amt=1.0, secs=0.25, thresh=0.45, gap=0.5):     ## a burst of an effect on every strong hit of the music
+    for t, st in onsets(t0, t1, thresh, gap):
+        fx(t, t + secs, name, amt * (0.6 + 0.6 * st))
+
+fx(0, 1.6, "vhs", 1.6)
+fx(0, 228, "scan", 0.45)                                    ## the street: a tape from a car boot
+fx(0, 228, "grain", 0.35)
+fx(0, 228, "vignette", 0.8)
+fx(0, 228, "vhs", 0.12)
+step_t = 7.0
+for i, (who, text) in enumerate(LINES):
+    t = step_t + i * step
+    if who == "narr":
+        fx(t - 0.35, t + 0.6, "vhs", 1.4)
+        fx(t - 0.35, t + 0.6, "blur", 1.0)
+        fx(t - 0.2, t + 0.15, "rgb", 1.5)
+    elif text.endswith("!") or text.isupper() or "STOP" in text or "ARE" in text:
+        fx(t, t + 0.3, "rgb", 1.0)
+        fx(t, t + 0.22, "glitch", 0.4)
+    elif text.startswith("Hey, ladies"):
+        fx(t, t + 1.1, "rgb", 0.8)
+        fx(t + 0.05, t + 0.3, "invert", 0.5)
+        fx(t + 0.35, t + 0.5, "glitch", 0.5)
+fx_hits(2, 226, "rgb", 0.5, 0.2, 0.5, 6.0)
+fx(228, 277, "scan", 0.3)                                   ## the limo: slow and dreamy
+fx(228, 277, "vhs", 0.45)
+fx(228, 277, "grain", 0.25)
+fx(264, 276, "rgb", 0.35)
+fx(276.8, 277.5, "invert", 1.0)                             ## the beat drops
+fx(277, 320, "grain", 0.22)                                 ## the dance
+fx(277, 320, "scan", 0.3)
+fx(277, 320, "vignette", 0.6)
+fx_hits(277, 320, "rgb", 1.0, 0.25, 0.4, 0.6)
+fx_hits(277, 320, "kaleido", 1.0, 0.13, 0.6, 5.0)
+fx_hits(277, 320, "zoom", 0.6, 0.2, 0.55, 2.5)
+fx(293, 294.5, "glitch", 0.8)                               ## the face pops onto everything
+fx(296.6, 297.6, "glitch", 0.8)
+fx(299.6, 301.6, "tint", 1.0)
+fx(317.2, 320, "stutter", 6)
+fx(320, 405, "tint", 0.55)                                  ## the lounge: neon
+fx(320, 405, "vhs", 0.5)
+fx(320, 405, "scan", 0.4)
+fx(320, 405, "grain", 0.2)
+fx_hits(320, 405, "rgb", 1.0, 0.25, 0.4, 0.6)
+fx_hits(320, 405, "posterize", 1.0, 0.13, 0.65, 6.0)
+fx_hits(320, 405, "mirror", 1.0, 0.25, 0.6, 7.0)
+for ts in (350.0, 372.0, 392.0):
+    fx(ts, ts + 0.3, "glitch", 1.0)
+    fx(ts, ts + 0.3, "pixel", 0.6)
+for k in range(8):
+    fx(329 + k * 9.7, 329.4 + k * 9.7, "stutter", 5)
+fx(405, 510, "grain", 0.3)                                  ## the beach: hot, sunburnt film
+fx(405, 510, "vignette", 0.9)
+fx(405, 510, "scan", 0.2)
+fx_hits(405, 510, "rgb", 0.9, 0.25, 0.4, 0.6)
+fx_hits(405, 510, "zoom", 0.7, 0.2, 0.55, 2.0)
+fx_hits(405, 510, "posterize", 1.0, 0.13, 0.7, 8.0)
+fx_hits(405, 510, "kaleido", 1.0, 0.13, 0.7, 11.0)
+for ts in (430.0, 462.0, 498.0):
+    fx(ts, ts + 0.3, "glitch", 1.0)
+    fx(ts, ts + 0.3, "pixel", 0.8)
+fx(510, 560, "glitch", 0.35)                                ## the climax: everything breaks
+fx(510, 560, "rgb", 0.8)
+fx(510, 560, "grain", 0.4)
+fx(510, 560, "flicker", 0.4)
+fx_hits(510, 560, "solarize", 1.0, 0.13, 0.35, 1.8)
+fx_hits(510, 560, "invert", 1.0, 0.09, 0.5, 3.5)
+fx_hits(510, 560, "kaleido", 1.0, 0.2, 0.4, 2.5)
+fx_hits(510, 560, "zoom", 1.0, 0.2, 0.4, 1.5)
+fx_hits(510, 560, "pixel", 0.7, 0.15, 0.4, 3.0)
+for ts in (519.0, 531.0, 543.0, 553.0):
+    fx(ts, ts + 0.3, "glitch", 1.0)
+    fx(ts, ts + 0.3, "invert", 1.0)
+for k in range(10):
+    fx(512 + k * 4.7, 512.5 + k * 4.7, "stutter", 6)
+fx(560, 633.75, "scan", 0.25)                               ## the wedding: nearly calm
+fx(560, 633.75, "grain", 0.28)
+fx(560, 633.75, "vhs", 0.25)
+fx(560, 633.75, "vignette", 0.7)
+fx(560, 560.8, "invert", 1.0)
+fx_hits(560, 628, "rgb", 0.5, 0.3, 0.5, 5.0)
+fx(630, 633.75, "glitch", 0.5)                              ## ... and then it comes apart: the face, stretching, until the cut
+fx(632, 633.75, "rgb", 1.5)
+fx(632.3, 633.75, "stutter", 8)
+fx(633.55, 633.75, "invert", 1.0)
 flush_moves()
