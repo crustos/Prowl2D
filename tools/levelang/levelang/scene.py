@@ -152,6 +152,17 @@ class Scene:
     cams: list = field(default_factory=list)       # (t, x, y, zoom, ease)
     fades: list = field(default_factory=list)      # (t0, t1, a0, a1, colour)
     captions: list = field(default_factory=list)   # {"kind", "t", "text", ...}
+    fxs: list = field(default_factory=list)        # (t0, t1, name, amount): a post effect on the picture (see render/fx.py)
+
+    def fx_at(self, t: float) -> list:
+        return [(n, a) for t0, t1, n, a in self.fxs if t0 <= t < t1]
+
+    def stutter_at(self, t: float):
+        """Seconds per held frame if a stutter is on at t (the picture freezes and steps), else None."""
+        for t0, t1, n, a in self.fxs:
+            if n == "stutter" and t0 <= t < t1:
+                return max(0.05, 0.5 / max(1.0, a))
+        return None
 
     def beat(self, n: float = 1.0) -> float:
         """Seconds of n beats."""
@@ -216,7 +227,7 @@ class Scene:
                            "moves": [[m.t0, m.t1, m.x0, m.y0, m.x1, m.y1, m.ease, m.hop] for m in a.moves],
                            "pose_cues": [list(c) for c in a.pose_cues],
                            "emotes": [[t, tile.name, s] for t, tile, s in a.emotes]} for n, a in self.actors.items()},
-            "cams": [list(c) for c in self.cams], "fades": [list(f) for f in self.fades], "captions": self.captions,
+            "fx": [list(x) for x in self.fxs], "cams": [list(c) for c in self.cams], "fades": [list(f) for f in self.fades], "captions": self.captions,
         }
 
 
@@ -336,6 +347,13 @@ def builtins(level) -> dict:
     def fade(t0, t1, a0, a1, color="black"):
         need().fades.append((float(t0), float(t1), float(a0), float(a1), color))
 
+    def fx(t0, t1, name, amount=1.0):
+        """``fx(10, 10.3, "rgb", 1.0)``: a post effect on the picture while it is on: grain scan rgb glitch vhs invert posterize solarize mirror kaleido blur pixel tint flicker vignette stutter zoom."""
+        from .render.fx import NAMES
+        if name not in NAMES:
+            raise ValueError(f"fx({name!r}): the effects are {', '.join(NAMES)}")
+        need().fxs.append((float(t0), float(t1), name, float(amount)))
+
     def line(t, text, who=None, seconds=3.0):
         need().captions.append({"kind": "say", "t": float(t), "text": str(text), "who": who, "seconds": float(seconds)})
 
@@ -343,4 +361,4 @@ def builtins(level) -> dict:
         need().captions.append({"kind": "title", "t": float(t), "text": str(text), "sub": sub, "seconds": float(seconds)})
 
     return {"scene": scene, "beat": beat, "show": show, "hide": hide, "face": face, "warp": warp, "dance": dance, "punch": punch, "shake": shake,
-            "actor": actor, "move": move, "pose": pose, "emote": emote, "cam": cam, "cut": cut, "fade": fade, "line": line, "card": card}
+            "actor": actor, "move": move, "pose": pose, "emote": emote, "cam": cam, "cut": cut, "fade": fade, "fx": fx, "line": line, "card": card}
