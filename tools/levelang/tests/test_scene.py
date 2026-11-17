@@ -229,3 +229,33 @@ class LoveStorySampleTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FxTests(unittest.TestCase):
+    def test_every_effect_runs_and_keeps_the_size(self):
+        from PIL import Image
+        from levelang.render.fx import NAMES, apply
+        img = Image.new("RGB", (64, 36), (120, 200, 90))
+        for n in NAMES:
+            if n == "stutter":
+                continue
+            out = apply(img, [(n, 1.0)], 3)
+            self.assertEqual(out.size, img.size, n)
+
+    def test_fx_builtin_and_render(self):
+        import tempfile, os
+        from levelang import load_file
+        src = ('meta(width=8, height=6)\nT = __tile__("t", "", [fill("#336699")])\nplace(T, 0, 0)\nplace(T, 7, 5)\n'
+               'scene("x", seconds=1, fps=4, view=(8, 6))\nfx(0, 0.5, "rgb", 1)\nfx(0.5, 1, "glitch", 0.5)\nfx(0, 1, "stutter", 4)\n')
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "a.lvl")
+            open(p, "w").write(src)
+            lv, _ = load_file(p, 1)
+            self.assertEqual(len(lv.scene.fxs), 3)
+            self.assertEqual(lv.scene.fx_at(0.2)[0][0], "rgb")
+            from levelang.render.scene import render_scene
+            ims = render_scene(lv, os.path.join(d, "a.gif"), tile_px=8, at=[0.1, 0.7])
+            self.assertEqual(len(ims), 2)
+            import levelang.scene as S
+            with self.assertRaises(ValueError):
+                S.builtins(lv)["fx"](0, 1, "nope")
