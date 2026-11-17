@@ -1,0 +1,133 @@
+'''
+Gelly, SlimeJump's girlfriend: the same kind of body as slime.kmj with a bow, lashes, a big blush and (for the
+wedding) a veil behind her.  The veil is part 0: hidden unless a pose asks for it.
+'''
+
+## ---------------------------------------------------------------- the eyes
+def eye(fill={0:white, 10:black}, stroke={20:black, 30:black}, width={20:0.3, 30:0.3}, sizes={10:2.6}, smooth=1.0):
+    21        31
+      0      1
+      20    30
+         10
+
+      3      2
+
+def heart_eye(fill=crimson, smooth=0.55):
+      5     1
+         0
+    4         2
+
+
+
+         3
+
+def happy_eye(stroke=black, width=0.35, smooth=1.0):
+    0      2~
+
+        1
+
+def shade(fill=black, stroke=dimgray, width=0.3, smooth=0.5):
+    0       1
+
+
+    3       2
+
+## ---------------------------------------------------------------- the mouths
+def smile(stroke=black, width=0.3, smooth=1.0):
+    0         2~
+
+        1
+
+def grin(fill=maroon, smooth=0.8):
+    0         1
+
+      3     2
+
+def oh(fill=maroon, smooth=1.0):
+       0
+    3     1
+       2
+
+def flat(stroke=black, width=0.3):
+    0     1
+
+def frown(stroke=black, width=0.3, smooth=1.0):
+        1
+
+    0         2~
+
+## ---------------------------------------------------------------- the body (10..17), the veil behind it (0..7), a bow (80..90)
+def gelly(fill={0:white, 10:pink, 20:white, 60:lightcoral, 70:lightcoral, 80:hotpink, 84:hotpink, 90:crimson}, stroke={0:lightgray, 10:hotpink, 80:deeppink, 84:deeppink}, smooth={0:0.8, 10:0.75, 80:0.4, 84:0.4}, sizes={20:(3, 2), 30:(5, 6), 40:(5, 6), 50:(7, 3), 60:(5, 3), 70:(5, 3), 90:(2, 2)}):
+                     0
+                81                    85
+       7                           1
+                    10  80  90  84
+            17  82            11      86
+              20
+                30        40
+
+    6 16                          12  2
+          60                  70
+                    50
+
+          15        14        13
+     5               4               3
+
+## ---------------------------------------------------------------- poses
+## (id, col, row) of each part: the body is squashed about its base (the same trick as slime.kmj)
+CENTER = [(10, 17, 7.9), (20, 10, 5), (30, 12, 6), (40, 22, 6), (50, 17, 10), (60, 7, 9), (70, 27, 9), (80, 17, 3), (84, 25, 3), (90, 21, 3)]
+BASE = (17, 12)
+
+def pose(sx=1, sy=1, lift=0, look=(0, 0), blink=0, mouth=smile(), eyes=0, tilt=0, veil=0, blush=1, wink=False, shades=False, color=pink):
+    s = 1 - blink
+    if eyes == 1:
+        left = heart_eye()
+        right = heart_eye()
+    elif eyes == 2:
+        left = happy_eye()
+        right = happy_eye()
+    else:
+        left = eye(shift={10: look}, scale={0: (1, max(0.1, s)), 10: 0 if blink > 0.95 else 1})
+        right = eye(shift={10: look}, scale={0: (1, max(0.1, s)), 10: 0 if blink > 0.95 else 1})
+    if wink:
+        left = happy_eye()
+    if shades:
+        left = shade()
+        right = shade()
+    move = {i: ((c - BASE[0]) * (sx - 1), (r - BASE[1]) * (sy - 1) - lift) for i, c, r in CENTER}
+    move[0] = (0, -lift)
+    return gelly({10: color, 30: left, 40: right, 50: mouth}, shift=move, scale={0: veil, 10: (sx, sy), 60: blush, 70: blush}, rotate={10: tilt})
+
+## ---------------------------------------------------------------- animations
+idle   = [pose(), pose(sy=1.04, sx=0.98), pose(sy=1.06, sx=0.97), pose(sy=1.03, sx=0.98), pose(), pose(blink=0.6), pose(blink=1), pose(blink=0.5)]
+wave   = [pose(tilt=t, lift=l, eyes=2 if l else 0, mouth=grin() if l else smile()) for t, l in [(0, 0), (6, 1), (-6, 2), (6, 1), (-6, 2), (0, 0)]]
+blush  = [pose(blush=b, look=(-1, 0.6), mouth=smile()) for b in [1, 1.5, 2, 2.4, 2, 1.5]]
+love   = [pose(eyes=1, mouth=grin(), sy=1.0 + 0.05 * k, sx=1.0 - 0.03 * k, lift=k) for k in [0, 1, 2, 1]]
+happy  = [pose(eyes=2, mouth=grin(), lift=k, sy=1.0 + 0.04 * k) for k in [0, 1, 2, 1]]
+scared = [pose(mouth=oh(), sy=1.1, sx=0.92, tilt=t, look=(0, -0.5)) for t in [-5, 5, -5, 5]]
+cry    = [pose(look=(0, 1), mouth=frown(), sy=0.94 + 0.02 * k, sx=1.03, blink=0.3 * (k % 2)) for k in [0, 1, 2, 1]]
+bride  = [pose(eyes=2, mouth=smile(), veil=1, lift=k, sy=1.0 + 0.03 * k) for k in [0, 1, 0, 1]]
+bride_love = [pose(eyes=1, mouth=grin(), veil=1, lift=k, sy=1.0 + 0.04 * k) for k in [0, 1, 2, 1]]
+rest   = pose()
+
+## ---------------------------------------------------------------- the music video poses
+shock   = [pose(mouth=oh(), sx=0.88, sy=1.2, lift=k, look=(0, -0.3)) for k in [0, 2, 0, 2]]
+wink    = [pose(wink=True, mouth=grin(), lift=k, sy=1.0 + 0.03 * k) for k in [0, 1, 0, 1]]
+cool    = [pose(shades=True, mouth=grin(), lift=k, sy=1.0 + 0.03 * k) for k in [0, 1, 0, 1]]
+dance_a = [pose(eyes=2, mouth=grin(), tilt=-8, sx=1.1, sy=0.9), pose(eyes=2, mouth=grin(), tilt=-4, sx=1.05, sy=0.96, lift=1)]
+dance_b = [pose(eyes=2, mouth=grin(), tilt=8, sx=0.9, sy=1.16, lift=3), pose(eyes=2, mouth=grin(), tilt=4, sx=0.94, sy=1.1, lift=2)]
+groove_a = [pose(shades=True, mouth=grin(), tilt=-8, sx=1.1, sy=0.9), pose(shades=True, mouth=grin(), tilt=-4, sx=1.05, sy=0.96, lift=1)]
+groove_b = [pose(shades=True, mouth=grin(), tilt=8, sx=0.9, sy=1.16, lift=3), pose(shades=True, mouth=grin(), tilt=4, sx=0.94, sy=1.1, lift=2)]
+
+## ---------------------------------------------------------------- talking (the mouth follows the loudness of the track) and a yellow friend
+talk0 = pose(mouth=flat())
+talk1 = pose(mouth=oh(), sy=1.03)
+talk2 = pose(mouth=grin(), sy=1.06, lift=1)
+no    = [pose(mouth=flat(), tilt=t, look=(1.2, 0), blink=b) for t, b in [(-4, 0), (4, 0), (-4, 0.6), (4, 0)]]
+heart = [pose(eyes=1, mouth=smile(), lift=k, blush=1.6) for k in [0, 1, 2, 1]]
+y_talk0 = pose(mouth=flat(), color=gold)
+y_talk1 = pose(mouth=oh(), sy=1.03, color=gold)
+y_talk2 = pose(mouth=grin(), sy=1.06, lift=1, color=gold)
+y_no    = [pose(mouth=flat(), tilt=t, look=(1.2, 0), blink=b, color=gold) for t, b in [(-4, 0), (4, 0), (-4, 0.6), (4, 0)]]
+y_heart = [pose(eyes=1, mouth=smile(), lift=k, blush=1.6, color=gold) for k in [0, 1, 2, 1]]
+y_idle  = [pose(color=gold), pose(sy=1.04, sx=0.98, color=gold), pose(color=gold), pose(blink=0.8, color=gold)]

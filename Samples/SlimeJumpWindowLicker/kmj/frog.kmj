@@ -1,0 +1,75 @@
+'''
+Sir Croak, the rival: a frog who thinks he is Gelly's suitor.  A wide body, two bulging eyes stamped on 20 and 30,
+a throat sac (70) that swells when he croaks, and a mouth (40, 41, 42) that frowns.
+'''
+
+def eye(fill={0:white, 10:black}, sizes={10:3}, smooth=1.0):
+    0       1
+
+
+        10
+
+
+    3       2
+
+def shade(fill=black, stroke=dimgray, width=0.3, smooth=0.5):
+    0       1
+
+
+    3       2
+
+def frog(fill={0:forestgreen, 20:white, 70:khaki, 80:darkgreen, 90:darkgreen}, stroke={0:darkgreen, 70:olive, 40:black, 50:black, 60:black}, width={40:0.35, 50:0.4, 60:0.4}, smooth={0:0.75, 70:1.0}, sizes={20:(7, 7), 30:(7, 7), 70:(10, 4), 80:(3, 2), 90:(3, 2)}):
+        50                      61
+              51          60
+
+
+            20              30
+                    0
+          7                   1
+
+
+            80            90
+    6               41              2
+
+          40                42~
+                    70
+         5                     3
+                    4
+
+def pose(look=(0, 0), blink=0, croak=0, angry=1, lift=0, tilt=0, shades=False, color=forestgreen):
+    s = 1 - blink
+    left = eye(shift={10: look}, scale={0: (1, max(0.15, s)), 10: 0 if blink > 0.95 else 1})
+    right = eye(shift={10: look}, scale={0: (1, max(0.15, s)), 10: 0 if blink > 0.95 else 1})
+    if shades:
+        left = shade()
+        right = shade()
+    a = angry * 1.2
+    return frog({0: color, 20: left, 30: right}, shift={50: (0, a), 51: (0, -a), 60: (0, -a), 61: (0, a)} if angry else {}, scale={70: 1 + croak}, rotate={0: tilt})
+
+croak = [pose(croak=c, angry=a) for c, a in [(0, 1), (0.4, 1), (0.9, 1), (0.9, 1), (0.4, 1), (0, 1)]]
+blink = [pose(blink=b) for b in [0, 0.6, 1, 0.6, 0]]
+glare = [pose(look=(x, 0)) for x in [0, -1, -1, 0, 1, 1]]
+rest  = pose()
+
+## ---------------------------------------------------------------- the music video poses
+smug    = [pose(blink=0.5, look=(1, 0), angry=0, croak=c) for c in [0, 0.2, 0.4, 0.2]]
+shock   = [pose(look=(0, -0.5), croak=c, angry=0) for c in [0.9, 1.2, 0.9, 1.2]]
+cry     = [pose(look=(0, 1), blink=0.35 + 0.1 * (k % 2), angry=0, croak=0.3 * k) for k in [0, 1, 2, 1]]
+cool    = [pose(shades=True, angry=0, croak=c) for c in [0, 0.3, 0.6, 0.3]]
+dance_a = [pose(tilt=-6, croak=0.8, angry=0), pose(tilt=-3, croak=0.4, angry=0)]
+dance_b = [pose(tilt=6, croak=0.1, angry=0), pose(tilt=3, croak=0.4, angry=0)]
+groove_a = [pose(shades=True, tilt=-6, croak=0.8, angry=0), pose(shades=True, tilt=-3, croak=0.4, angry=0)]
+groove_b = [pose(shades=True, tilt=6, croak=0.1, angry=0), pose(shades=True, tilt=3, croak=0.4, angry=0)]
+
+## ---------------------------------------------------------------- talking, and a blue cousin (Sir Ribbit)
+talk0 = pose(croak=0, angry=0.8)
+talk1 = pose(croak=0.5, angry=0.8)
+talk2 = pose(croak=1.0, angry=0.6)
+lean  = [pose(look=(1, 0), angry=0.8, tilt=t, croak=c) for t, c in [(-3, 0), (0, 0.3), (3, 0), (0, 0.2)]]
+b_talk0 = pose(croak=0, angry=0.8, color=steelblue)
+b_talk1 = pose(croak=0.5, angry=0.8, color=steelblue)
+b_talk2 = pose(croak=1.0, angry=0.6, color=steelblue)
+b_idle  = [pose(angry=0.8, color=steelblue), pose(angry=0.8, croak=0.2, color=steelblue), pose(angry=0.8, color=steelblue), pose(blink=0.8, angry=0.8, color=steelblue)]
+b_lean  = [pose(look=(1, 0), angry=0.8, tilt=t, croak=c, color=steelblue) for t, c in [(-3, 0), (0, 0.3), (3, 0), (0, 0.2)]]
+b_cry   = [pose(look=(0, 1), blink=0.35, angry=0, croak=0.3 * k, color=steelblue) for k in [0, 1, 2, 1]]
+b_smug  = [pose(blink=0.5, look=(1, 0), angry=0, croak=c, color=steelblue) for c in [0, 0.2, 0.4, 0.2]]
