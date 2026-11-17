@@ -7,6 +7,7 @@
 
 - Playable demo: https://crustos.github.io/Prowl2D/
 - *[Samples/SlimeJumpLevelang](Samples/SlimeJumpLevelang): SlimeJump underwater, its level written in [levelang](tools/levelang) (emoji art, SVG tiles, parallax layers, a smooth skin over the square tiles) and exported to `Level.cs`; the same level opens in the editor with its layers (`levelang export-project`).*
+- *[Samples/SlimeJumpRPG](Samples/SlimeJumpRPG): a love story: SlimeJump meets Gelly, loses her to a dragon and crosses thorns, a crumbling bridge and a storm peak to marry her. The people are drawn and animated with [kaomojilang](tools/kaomojilang) (numbers in text), the story is told by the level (`say()` / `title()`), and the same source runs on .NET and as a native C player.*
 - *[Samples/SlimeJumpDestructSand](Samples/SlimeJumpDestructSand): a shaft down an old building, with falling sand, flowing water and destructible rock (Shatter2D). Headless: the same source runs on .NET and as a native C player with identical output.*
 
 **A Unity-like game engine, now a 2D engine, on [Box2D-Packed](https://github.com/crustos/box2d), whose core is being rewritten in a C# subset that translates to C.**
@@ -460,6 +461,7 @@ Roslyn against reference assemblies, and CCSharp's 73 tests from a fresh clone. 
 | `Prowl.Runtime/Components/Physics2D/` | `Rigidbody2D`, the colliders and the joints (`Joint2D` and its seven types) |
 | `Prowl.Runtime/PhysicsCommon/` | what 2D and 3D share (collision matrix, force modes) |
 | `Native/Box2D/` | the C shim, its CMake project, and the test harness |
+| `tools/kaomojilang/` | kaomojilang, vendored from [crustos/geonodes](https://github.com/crustos/geonodes): characters drawn and animated from numbers placed in text, to SVG (pure Python) or Grease Pencil (in Blender); levelang uses it for `kmj(...)` tiles |
 | `tools/ccsharp/` | the translatability scan and the C-vs-.NET conformance test |
 | `tools/check_physics3d.py` | the 3D switch checker |
 | `Prowl.Runtime/Physics/`, `Components/Physics/` | 3D physics; compiled only with `--3d` |
