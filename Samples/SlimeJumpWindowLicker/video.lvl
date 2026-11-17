@@ -11,7 +11,7 @@
 ##     python3 Samples/SlimeJumpWindowLicker/analyze_audio.py TRACK.mp3 Samples/SlimeJumpWindowLicker/audio.json
 ##     python3 tools/levelang scene Samples/SlimeJumpWindowLicker/video.lvl --fps 8 --tile 20 --mp4 out.mp4 --audio TRACK.mp3
 
-meta(width=512, height=21)
+meta(width=608, height=21)
 background("#7fd0ff", "#ffe8c0")
 
 J = data("audio.json")
@@ -50,11 +50,24 @@ GELLY = people("gl_", "gelly.kmj", "idle", "talk", {"no": "no", "heart": "heart"
 JELLY = people("jl_", "gelly.kmj", "y_idle", "y_talk", {"no": "y_no", "heart": "y_heart"}, GW, GH)
 CROAK = people("cr_", "frog.kmj", "croak", "talk", {"lean": "lean", "cry": "cry", "smug": "smug"}, 4.2, 3.4)
 RIBBIT = people("rb_", "frog.kmj", "b_idle", "b_talk", {"lean": "b_lean", "cry": "b_cry", "smug": "b_smug"}, 4.2, 3.4)
+CROAK["face"] = sq("cr_face", "popfrog_*.svg", 4.2, 3.7, 5)       ## "everyone gets the face": the face pops onto the frogs, the car, the girls
+RIBBIT["face"] = sq("rb_face", "popfrog_*.svg", 4.2, 3.7, 5)
+GELLY["face"] = sq("gl_face", "morph_5_*.svg", GH * 0.76, GH, 4)
+JELLY["face"] = sq("jl_face", "morphy_5_*.svg", GH * 0.76, GH, 4)
 
 HW, HH = 8, 9.2
 HERO = {"idle": sq("h_strut", "hero_strut_*.svg", HW, HH, 4), "dance": sq("h_dance", "hero_dance_*.svg", HW, HH, 4.1), "slow": sq("h_slow", "hero_dance_*.svg", HW, HH, 1.6),
-        "tada": sv("h_tada", "hero_pose_01.svg", HW, HH), "pose": sv("h_pose", "hero_pose_00.svg", HW, HH)}
-HFACE = {"grin": sq("hf_grin", "hero_face_0[0-3].svg", 22, 16, 5), "crazy": sq("hf_crazy", "hero_face_nosh_*.svg", 22, 16, 5), "lick": sq("hf_lick", "hero_lick_*.svg", 22, 16, 2)}
+        "tada": sv("h_tada", "hero_pose_01.svg", HW, HH), "pose": sv("h_pose", "hero_pose_00.svg", HW, HH),
+        "usher": sv("h_usher", "hero_pose_02.svg", HW, HH), "bow": sv("h_bow", "hero_pose_03.svg", HW, HH), "split": sv("h_split", "hero_pose_04.svg", HW, HH),
+        "twirl": sq("h_twirl", "hero_twirl_*.svg", HW, HH, 7)}
+HFACE = {"grin": sq("hf_grin", "hero_face_0[0-3].svg", 22, 16, 5), "crazy": sq("hf_crazy", "hero_face_nosh_*.svg", 22, 16, 5), "lick": sq("hf_lick", "hero_lick_*.svg", 22, 16, 2), "zoom": sq("hf_zoom", "hero_zoom_*.svg", 22, 16, 9),
+         "ok": sv("hf_ok", "hero_face_00.svg", 22, 16)}
+## the full-bleed close-ups (they fill the whole frame, so they have a room of their own): the extreme crops, the fisheye, the lights, the fog, the eye-roll
+FB = {"fish": sq("hf_fish", "hero_fish_*.svg", 22, 16, 10), "red": sq("hf_red", "hero_lit_red_*.svg", 22, 16, 12), "blue": sq("hf_blue", "hero_lit_blue_*.svg", 22, 16, 12),
+      "fog": sq("hf_fog", "hero_fog_*.svg", 22, 16, 1.6), "roll": sq("hf_roll", "hero_roll_*.svg", 22, 16, 14)}
+for i in range(4):                                       ## one tile per size, so a zoom is four frames
+    FB[f"g{i}"] = sv(f"hf_g{i}", f"grin_cu_{i:02d}.svg", 22, 16)
+    FB[f"s{i}"] = sq(f"hf_s{i}", f"shades_cu_{i:02d}_*.svg", 22, 16, 9)
 HHEAD = {"grin": sq("hh_grin", "hero_face_0[0-3].svg", 5.5, 4, 5)}
 
 DANCERS = {c: sq("dn_" + c, f"dancer_{c}_*.svg", 7, 9.2, 4.1) for c in "abcd"}
@@ -66,18 +79,28 @@ CHAMP = {f"c{i}": sv(f"ch{i}", f"champagne_{i:02d}.svg", 4, 6) for i in range(8)
 CHAMP_BIG = {f"c{i}": sv(f"chb{i}", f"champagne_{i:02d}.svg", 11, 16.5) for i in range(8)}
 BOOM = sq("boom", "boombox_*.svg", 6, 3.6, 4.1)
 BOOM_BIG = sq("boomb", "boombox_*.svg", 24, 14.4, 4.1)
+GRANNY = sq("granny", "granny_*.svg", 7, 9.2, 4.1)
+KID = sq("kid", "kid_*.svg", 5.6, 7.4, 4.1)
+SUN = sq("sun", "sun_*.svg", 9, 9, 3)
+BALL = sq("ball", "ball_*.svg", 3.4, 3.4, 8)
+CORK = sq("cork", "cork_*.svg", 2, 2, 10)
+SPRAY = sq("spray", "spray_*.svg", 32, 18, 5)
+PALM = sq("palm", "palm_sway_*.svg", 6, 12, 3)
 
 ## ---------------------------------------------------------------- the sets
 place(NIL, 0, 0)
-place(NIL, 511, 0)
+place(NIL, 607, 0)
 place(NIL, 0, 20)
-place(NIL, 511, 20)
+place(NIL, 607, 20)
 place(sv("street", "street_bg.svg", 64, 21, bg), 0, 0)
 place(sv("lounge", "interior_bg.svg", 64, 21, bg), 64, 0)
 place(sv("beach", "beach_bg.svg", 64, 21, bg), 128, 0)
-ROOMS = ["hero", "pink", "blue", "lime", "lilac", "teal", "orange", "red", "purple", "sun"]
+ROOMS = ["hero", "pink", "blue", "lime", "lilac", "teal", "orange", "red", "purple", "sun", "static", "foam", "face"]
 for i, r in enumerate(ROOMS):
-    place(sv("room_" + r, f"room_{r}.svg", 32, 18, bg), 192 + 32 * i, 1.5)
+    if r == "static":
+        place(mk("room_static", svgs("svg/static_*.svg", fps=14), size(32, 18), bg), 192 + 32 * i, 1.5)
+    else:
+        place(sv("room_" + ("red" if r == "foam" else "sun" if r == "face" else r), f"room_{'red' if r == 'foam' else 'sun' if r == 'face' else r}.svg", 32, 18, bg), 192 + 32 * i, 1.5)
 RC = {r: 208 + 32 * i for i, r in enumerate(ROOMS)}      ## the centre of each room
 ARCH = sv("arch", "arch.svg", 10, 10)
 BRIDE = sv("bride", "bride.svg", 7, 9.2)
@@ -89,7 +112,7 @@ scene("slimejump-window-licker", seconds=DUR, fps=FPS, view=(32, 18), bpm=J["tem
 actor("car_back", sq("cbk", "car_back_*.svg", 14, 5.6, 3), -16, 13.8)
 actor("croak", CROAK, -9.5, 13.4)
 actor("ribbit", RIBBIT, -14, 13.4)
-actor("car_front", sq("cfr", "car_front_*.svg", 14, 5.6, 3), -16, 13.8)
+actor("car_front", {"idle": sq("cfr", "car_front_*.svg", 14, 5.6, 3), "face": sq("cfrf", "popcar_*.svg", 14, 5.6, 5)}, -16, 13.8)
 actor("gelly", GELLY, 20.5, G - GH)
 actor("jelly", JELLY, 26.4, G - GH)
 actor("limo_back", sv("lmb", "limo_back.svg", 46, 6.2), 52, 13.0, flip=True)
@@ -97,6 +120,9 @@ actor("limo_head", HHEAD, 52 + 14.2 - 2.75, 13.0 + 1.0, size=(5.5, 4))
 hide("limo_head", 0)
 actor("limo_glass", sv("lmg", "limo_glass.svg", 46, 6.2), 52, 13.0, flip=True)
 actor("limo_front", sv("lmf", "limo_front.svg", 46, 6.2), 52, 13.0, flip=True)
+actor("limo_m1", sv("lm1", "limo_mid.svg", 46, 6.2), 52 + 46, 13.0)
+actor("limo_m2", sv("lm2", "limo_mid.svg", 46, 6.2), 52 + 92, 13.0)
+actor("limo_tail", sv("lmt", "limo_tail.svg", 46, 6.2), 52 + 138, 13.0)
 actor("hero", HERO, 40, G - HH)
 hide("hero", 0)
 
@@ -112,6 +138,21 @@ BEACH_C = ["a", "b", "c", "d", "b", "a", "d", "c"]
 for i, (x, c) in enumerate(zip(BEACH_X, BEACH_C)):
     actor(f"d{i}", DANCERS[c], x, G - 9.2 + (0.3 if i < 6 else -0.6))
     hide(f"d{i}", 0)
+ROWX = [131, 142, 153, 164, 175, 186]
+for i in range(6):
+    actor(f"row{i}", DANCERS["abcd"[i % 4]], ROWX[i], G - 7.0, size=(5.2, 6.9))
+    hide(f"row{i}", 0)
+actor("granny", GRANNY, 165, G - 9.2)
+actor("granny2", GRANNY, 143, G - 9.2, flip=True)
+actor("kid", KID, 172, G - 6)
+actor("kid2", KID, 150, G - 6)
+actor("sun", SUN, 155, 1.0)
+actor("ball", BALL, 134, G - 4.0)
+actor("palm1", PALM, 129, G - 12.2)
+actor("palm2", PALM, 189, G - 12.2)
+actor("cork", CORK, 150, 4.0)
+for nm in ("granny", "granny2", "kid", "kid2", "sun", "ball", "palm1", "palm2"):
+    hide(nm, 0)
 actor("boom", BOOM, 176, G - 3.6)
 hide("boom", 0)
 actor("arch", ARCH, 155, 7)
@@ -133,6 +174,8 @@ cu("dface_y", DFACE_Y, "orange", 22, 16)
 cu("champ_cu", CHAMP_BIG, "red", 11, 16.5)
 cu("boom_cu", BOOM_BIG, "purple", 24, 14.4)
 cu("hero_cu2", HFACE, "sun", 22, 16)
+cu("hero_fb", FB, "face", 32, 23.27)
+actor("foam_cu", SPRAY, RC["foam"] - 16, 1.5, size=(32, 18))
 
 ## ---------------------------------------------------------------- helpers
 def wide(t, x, y=14.0, zoom=1.1):
@@ -229,6 +272,7 @@ def flush_moves():
                 continue
             move(name, t0, t1, x, y, ease=ease, hop=hop)
             last = t1
+    MOVES.clear()
 
 CAR0 = [4.0]
 FY = 13.4
@@ -349,8 +393,8 @@ flush_moves()
 wide(228.5, 40, 12.6, 1.4)
 fade(227.5, 228.5, 0, 0.7, "black")
 fade(228.5, 230, 0.7, 0, "black")
-for nm in ("limo_back", "limo_glass", "limo_front"):
-    move(nm, 230, 259, 32, 13.0 if nm != "limo_glass" else 13.0, ease="inout")
+for nm, off in (("limo_back", 0), ("limo_glass", 0), ("limo_front", 0), ("limo_m1", 46), ("limo_m2", 92), ("limo_tail", 138)):
+    move(nm, 230, 259, 32 + off, 13.0, ease="inout")
 line(231, "A car arrives.", who="Narrator", seconds=3.4)
 line(240, "It is still arriving.", who="Narrator", seconds=3.4)
 line(249, "It is a lot of car.", who="Narrator", seconds=3.4)
@@ -373,15 +417,25 @@ room(271, "pink")
 pose("gelly_cu", 271, "heart")
 room(272.5, "hero")
 pose("hero_cu", 272.5, "lick")                      ## (he does it to the glass)
+room(273.6, "face")
+pose("hero_fb", 273.6, "fog")
 room(275.2, "lime")
 pose("croak_cu", 275.2, "cry")
 wide(276.4, 40, 12.0, 1.3)
 show("hero", 276.6)
 pose("hero", 276.6, "tada")
 
-## ================================================================ ACT 3  4:37 - 5:20   the cane dance
+## ================================================================ ACT 3  4:37 - 5:20   the cane dance, then the ushering
+def pcycle(name, t0, t1, poses, every):         ## change pose every `every` seconds (a dance move per phrase)
+    t, k = t0, 0
+    while t < t1:
+        pose(name, t, poses[k % len(poses)])
+        t += every
+        k += 1
+
 flash(277.2, "white", 1.0, 0.6)
 pose("hero", 277.3, "dance")
+pcycle("hero", 281, 302, ["twirl", "dance", "split", "dance", "twirl", "slow"], 3.4)
 move("gelly", 277.4, 279.4, 33, G - GH, ease="out", hop=0.7)
 move("jelly", 277.4, 279.4, 48.2, G - GH, ease="out", hop=0.7)
 pose("gelly", 279.4, "heart")
@@ -404,14 +458,106 @@ def jelly_face(t):
     pose("jelly_cu", t, "heart")
 def frogs_cry(t):
     wide(t, 10, 13.2, 1.8)
-edit(277.6, 320, [cam_wide, hero_face, hero_med, gelly_face, feet, girls_two, hero_face, jelly_face, cam_wide, frogs_cry], 0.4, 0.8, 0.8)
+def hero_zoom(t):
+    room(t, "sun")
+    pose("hero_cu2", t, "zoom")
+def fb(t, p):
+    room(t, "face")
+    pose("hero_fb", t, p)
+def hero_fish(t): fb(t, "fish")
+def lit_red(t): fb(t, "red")
+def lit_blue(t): fb(t, "blue")
+def hero_roll(t): fb(t, "roll")
+def xgrin(t):                                             ## an extreme zoom into the grin: one frame per size
+    for i in range(4):
+        fb(t + i / FPS, f"g{i}")
+def xshades(t):
+    for i in range(4):
+        fb(t + i / FPS, f"s{i}")
+def strobe(t, n=6):                                       ## red, blue, red, blue: the lights go round
+    for i in range(n):
+        (lit_red if i % 2 == 0 else lit_blue)(t + i * 0.25)
+def static_cut(t, back):
+    room(t, "static")
+    back(t + 0.25)
+edit(277.6, 291.8, [cam_wide, hero_face, hero_med, gelly_face, feet, girls_two, hero_zoom, jelly_face, cam_wide, frogs_cry], 0.4, 0.8, 0.8)
+static_cut(292.0, cam_wide)
+## everybody gets the face: it pops onto the frogs, the car, the girls
+wide(293.0, 10, 13.4, 2.0)
+for nm in ("croak", "car_front"):
+    pose(nm, 293.0, "face")
+pose("ribbit", 293.5, "face")
+flash(293.0, "#ff3cac", 0.5, 0.25)
+punch(293.0, 0.14, 0.3)
+punch(293.5, 0.14, 0.3)
+emote("croak", 293.2, EXCL, 1.0)
+emote("ribbit", 293.7, EXCL, 1.0)
+room(294.8, "lime")
+pose("croak_cu", 294.8, "face")
+punch(294.8, 0.12, 0.3)
+wide(295.7, 13, 13.4, 1.5)
+wide(296.6, 41, 12.6, 1.7)
+pose("gelly", 296.6, "face")
+pose("jelly", 297.0, "face")
+shake(296.6, 297.4, 0.2)
+punch(296.6, 0.14, 0.3)
+punch(297.0, 0.14, 0.3)
+room(298.0, "pink")
+pose("gelly_cu", 298.0, "face")
+room(298.9, "blue")
+pose("jelly_cu", 298.9, "face")
+strobe(299.6, 4)
+xshades(300.7)
+xgrin(301.2)
+
+## the ushering: the cane points, the girls walk up to the limo and climb in through the window, the hero bows and follows
+flash(302.0, "white", 0.8, 0.4)
+pose("hero", 302, "usher")
+wide(302, 40.5, 12.6, 1.5)
+fb(303.3, "roll")
+wide(304.2, 41, 12.8, 1.8)
+move("gelly", 304.2, 307.0, 44.5, G - GH, ease="inout", hop=0.9)
+pose("gelly", 304.2, "idle")
+room(305.8, "pink")
+pose("gelly_cu", 305.8, "heart")
+wide(307.0, 45, 12.8, 2.4)
+move("gelly", 307.0, 307.8, 45, 13.9, ease="inout", hop=1.4)
+hide("gelly", 307.9)
+move("jelly", 307.6, 309.9, 45.5, G - GH, ease="inout", hop=0.9)
+pose("jelly", 307.6, "idle")
+room(308.8, "blue")
+pose("jelly_cu", 308.8, "heart")
+wide(309.9, 45.5, 12.8, 2.4)
+move("jelly", 309.9, 310.7, 45.5, 13.9, ease="inout", hop=1.4)
+hide("jelly", 310.8)
+punch(307.0, 0.12, 0.3)
+punch(309.9, 0.12, 0.3)
+shake(310.7, 311.1, 0.25)
+wide(311.4, 40.5, 12.6, 1.2)
+pose("hero", 311.4, "twirl")
+frogs_cry(312.6)
+emote("croak", 312.8, SWEAT, 1.5)
+pose("croak", 312.6, "cry")
+pose("ribbit", 312.6, "cry")
+room(314.0, "lime")
+pose("croak_cu", 314.0, "cry")
+wide(315.0, 40.5, 12.0, 1.8)
+pose("hero", 315.0, "bow")
+punches(311, 320, 0.45, 0.3, 0.07)
+move("hero", 316.0, 316.9, 45, 13.9, ease="inout", hop=1.6)
+hide("hero", 317.0)
+static_cut(317.2, lambda t: wide(t, 40.5, 12.2, 1.3))
+shake(317.6, 319.8, 0.2)
+flash(319.9, "white", 1.0, 0.5)
 
 ## ================================================================ ACT 4  5:20 - 6:45   in the limo: the champagne, and the faces
 flash(320.2, "white", 1.0, 0.5)
 show("gm", 320.3)
 show("gmy", 320.3)
+show("hero", 320.3)
 warp("hero", 320.3, 92, G - HH)
 pose("hero", 320.3, "dance")
+pcycle("hero", 323, 404, ["twirl", "dance", "split", "dance", "slow", "twirl", "dance", "bow"], 4.1)
 wide(320.3, 92, 12.8, 1.15)
 STAGES = [(320.3, 337), (337, 349), (349, 361), (361, 373), (373, 385), (385, 410)]
 for mi, (a, b) in enumerate(STAGES):
@@ -445,44 +591,74 @@ def champ_cu(t):
     room(t, "red")
     pose("champ_cu", t, "c%d" % min(7, int((t * 3) % 8)))
 punches(320, 405, 0.45, 0.28, 0.06)
-edit(321, 405, [lounge_wide, face_p, lounge_girls, face_y, hero_face2, lounge_wide, face_p, champ_cu, face_y, lounge_girls], 0.4, 0.8, 0.8)
+edit(321, 405, [lounge_wide, face_p, lounge_girls, face_y, hero_zoom, lounge_wide, lit_red, champ_cu, face_y, hero_roll, lounge_girls, hero_fish, lit_blue, xshades, lounge_wide, xgrin], 0.4, 0.8, 0.8)
+for ts in (350.0, 372.0, 392.0):
+    static_cut(ts, lounge_wide)
 pose("hero", 380, "slow")
 
-## ================================================================ ACT 5  6:45 - 8:30   the beach
+## ================================================================ ACT 5  6:45 - 8:30   the beach: everyone has the grin (the grannies and the kids too)
 flash(405.2, "white", 1.0, 0.6)
 wide(405.2, 160, 12.8, 1.05)
-for i in range(8):
-    show(f"d{i}", 405.3)
+for nm in ["d%d" % i for i in range(8)] + ["row%d" % i for i in range(6)] + ["granny", "granny2", "kid", "kid2", "sun", "ball", "palm1", "palm2"]:
+    show(nm, 405.3)
 show("boom", 405.3)
 warp("hero", 405.3, 156, G - HH)
+show("hero", 405.3)
 pose("hero", 405.3, "dance")
-for i in range(8):
-    if i != 5:
-        dance(f"d{i}", 405.3, 560, [f"dance"], every=1, hop=0.6 + 0.1 * (i % 3)) if False else None
+pcycle("hero", 408, 628, ["twirl", "dance", "split", "dance", "slow", "twirl", "dance", "pose"], 3.9)
+BEAT = 60.0 / J["tempo"]
+DANCERS_ALL = [(f"d{i}", BEACH_X[i], G - 9.2 + (0.3 if i < 6 else -0.6)) for i in range(8)] + [(f"row{i}", 131 + i * 11, G - 7.0) for i in range(6)] + [("granny", 165, G - 9.2), ("granny2", 143, G - 9.2), ("kid", 172, G - 6), ("kid2", 150, G - 6)]
+def hop_all(t0, t1, every=2, amp=0.6):                  ## everyone hops on the beat, a little out of step (and sways)
+    for k, (nm, x, y) in enumerate(DANCERS_ALL):
+        t = t0 + (k % 4) * BEAT * 0.25
+        n = 0
+        while t + BEAT * every < t1:
+            sway = (0.5 if n % 2 else -0.5) * (1 if k % 2 else -1)
+            mv(nm, t, t + BEAT * every * 0.55, x + sway, y, hop=amp + 0.3 * (k % 3))
+            t += BEAT * every
+            n += 1
+hop_all(405.4, 628, 2, 0.6)
+for k in range(40):                                      ## the beach ball goes round the crowd
+    t0 = 405.5 + k * 3.6
+    if t0 > 625:
+        break
+    mv("ball", t0, t0 + 3.4, [134, 150, 165, 180, 168, 152][k % 6], G - 4.0, ease="inout", hop=8.0)
 def beach_wide(t): wide(t, 160, 12.8, 1.05)
 def beach_hero(t): wide(t, 160, 11.2, 2.3)
 def beach_left(t): wide(t, 146, 12.2, 1.9)
 def beach_right(t): wide(t, 175, 12.2, 1.9)
+def beach_sun(t): wide(160, 4.0, 2.4) if False else wide(t, 160, 5.0, 2.3)
+def beach_granny(t): wide(t, 165, 12.0, 2.6)
+def beach_kid(t): wide(t, 150, 14.0, 2.9)
+def beach_ball(t): wide(t, 158, 11.0, 1.6)
 def boom_cu(t):
     room(t, "purple")
     pose("boom_cu", t, "idle")
 punches(405, 510, 0.4, 0.28, 0.07)
-edit(405.5, 510, [beach_wide, face_p, beach_hero, face_y, beach_left, hero_face2, beach_right, boom_cu, beach_wide, face_p, beach_hero, champ_cu], 0.38, 0.65, 0.75)
+edit(405.5, 510, [beach_wide, face_p, beach_hero, face_y, beach_left, hero_zoom, beach_right, boom_cu, beach_sun, beach_granny, xgrin, beach_wide, lit_blue, beach_kid, hero_fish, beach_hero, champ_cu, xshades, beach_ball, lit_red, face_p, hero_roll], 0.38, 0.65, 0.75)
+for ts in (430.0, 462.0, 498.0):
+    static_cut(ts, beach_wide)
 pose("dface_p", 405, "m4")
 pose("dface_y", 405, "m4")
 
-## ================================================================ ACT 6  8:30 - 9:20   the champagne climax (everything faster)
+## ================================================================ ACT 6  8:30 - 9:20   the champagne climax (everything faster: corks, foam, static, the face stretching)
 flash(510.2, "white", 1.0, 0.5)
 shake(510.2, 560, 0.18)
 punches(510, 560, 0.3, 0.2, 0.09)
-edit(510.5, 560, [beach_hero, face_p, champ_cu, face_y, beach_left, hero_face2, boom_cu, beach_right, face_p, beach_wide, champ_cu, face_y], 0.3, 0.45, 0.6)
-for k in range(60):                                       ## bottles go off, in slow motion, over and over
-    t0 = 511 + k * 0.8
-    if t0 > 558:
-        break
-    pass
+def foam_cu(t):
+    room(t, "foam")
+def cork_shot(t): wide(t, 162, 6.0, 1.9)
+for k in range(int((558 - 511) / 3.2)):                     ## corks go off in slow motion, over and over, the camera runs to catch them
+    t0 = 511.5 + k * 3.2
+    mv("cork", t0, t0 + 2.4, [150, 172, 140, 180, 160][k % 5], 4.0 + (k % 3), ease="out", hop=-7.0 - (k % 3))
+    emote("hero", t0 + 0.1, EXCL, 0.8)
+edit(510.5, 560, [beach_hero, foam_cu, champ_cu, lit_red, hero_zoom, beach_left, cork_shot, xgrin, hero_fish, foam_cu, beach_wide, lit_blue, xshades, beach_right, cork_shot, face_y, hero_roll, xgrin], 0.3, 0.45, 0.6)
+strobe(556.0, 8)
+for ts in (519.0, 531.0, 543.0, 553.0):
+    static_cut(ts, beach_hero)
 
-## ================================================================ ACT 7  9:20 - 10:34   the wedding on the beach, which winds the party down
+## ================================================================ ACT 7  9:20 - 10:34   the wedding on the beach (it ends on a hard cut: the track stops dead, so the picture does too)
+CUT = 633.75
 flash(560.4, "white", 1.0, 0.8)
 show("arch", 560.4)
 show("bride", 560.4)
@@ -498,12 +674,18 @@ def wed_groom(t):
     room(t, "sun")
     pose("hero_cu2", t, "crazy")
 def wed_guests(t): wide(t, 148, 12.8, 1.5)
-punches(560, 628, 0.5, 0.5, 0.04)
-edit(561, 628, [wed_wide, wed_bride, wed_close, wed_groom, wed_guests], 0.5, 2.6, 0.9)
+punches(560, CUT, 0.5, 0.5, 0.04)
+edit(561, CUT - 0.5, [wed_wide, wed_bride, wed_close, wed_groom, wed_guests, beach_granny, beach_sun], 0.5, 2.6, 0.9)
 line(588, "I do... and so do my forty faces.", who="SlimeJump", seconds=3.6)
 line(597, "I do. Please stop licking the window.", who="Gelly", seconds=3.6)
-for k in range(8):
-    emote("hero", 600 + k * 1.0, __tile__("heart%d" % k, "", [svgs("svg/champagne_00.svg", fps=1), size(0.01, 0.01)]), seconds=0.5) if False else None
+line(606, "Do you promise to smile forever?", who="Narrator", seconds=3.0)
+line(613, "...I have no choice.", who="Gelly", seconds=2.6)
+line(620, "You may now grin the bride.", who="Narrator", seconds=3.0)
 pose("hero", 604, "tada")
-fade(628.5, 631.8, 0, 1, "black")
-card(633.2, "SLIMEJUMP WINDOW LICKER", "a love story", seconds=6.0)
+pose("hero_fb", 631.5, "fish")
+room(632.0, "face")                                    ## the last shot: the face, stretching, until the music stops
+flash(633.2, "white", 0.6, 0.3)
+shake(632.0, CUT, 0.3)
+fade(CUT, CUT + 0.05, 0, 1, "black")
+card(636.0, "SLIMEJUMP WINDOW LICKER", "a love story", seconds=5.0)
+flush_moves()

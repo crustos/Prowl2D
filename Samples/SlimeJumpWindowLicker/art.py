@@ -90,16 +90,17 @@ def lin_grad(gid, stops, x1=0, y1=0, x2=0, y2=1):
 
 
 # ---------------------------------------------------------------- faces
-def grin(cx, cy, s=1.0, open_=0.0, shades=True, crazy=0.0, seed=3, eyes_y=-6.0):
+def grin(cx, cy, s=1.0, open_=0.0, shades=True, crazy=0.0, seed=3, eyes_y=-6.0, mouth=True, eyes=True):
     """The grin everyone gets: a very wide mouth full of teeth, and sunglasses (or bulging eyes)."""
     out = []
     w, h = 15 * s, (5 + 6 * open_) * s
     my = cy + 5 * s
     # mouth
-    out.append(f'<path d="M{f(cx - w)} {f(my - 1.5 * s)} Q{f(cx)} {f(my + h * 1.75)} {f(cx + w)} {f(my - 1.5 * s)} Q{f(cx)} {f(my - 1.5 * s + h * 0.55)} {f(cx - w)} {f(my - 1.5 * s)} Z" '
+    if mouth:
+        out.append(f'<path d="M{f(cx - w)} {f(my - 1.5 * s)} Q{f(cx)} {f(my + h * 1.75)} {f(cx + w)} {f(my - 1.5 * s)} Q{f(cx)} {f(my - 1.5 * s + h * 0.55)} {f(cx - w)} {f(my - 1.5 * s)} Z" '
                f'fill="#7a1230" stroke="{OUT}" stroke-width="{f(2 * s)}" stroke-linejoin="round"/>')
     # teeth: a top row and a bottom row of little squares
-    n = 9
+    n = 9 if mouth else 0
     for i in range(n):
         t = (i + 0.5) / n
         x = cx - w + 2 * w * t
@@ -108,6 +109,8 @@ def grin(cx, cy, s=1.0, open_=0.0, shades=True, crazy=0.0, seed=3, eyes_y=-6.0):
         yb = my - 1.5 * s + (1 - (2 * t - 1) ** 2) * h * 1.12
         out.append(rect(x - 1.55 * s, yb - 2.4 * s, 3.1 * s, 2.9 * s, "#fffbe8", r=0.5 * s, sw=0.9 * s))
     ey = cy + eyes_y * s
+    if not eyes:
+        return "".join(out)
     if shades:
         for sx in (-1, 1):
             out.append(poly([(cx + sx * 3 * s, ey - 3.6 * s), (cx + sx * 12.5 * s, ey - 3.6 * s), (cx + sx * 11.5 * s, ey + 4.4 * s), (cx + sx * 4.5 * s, ey + 4.4 * s)], "#15101c", sw=1.6 * s, smooth=False))

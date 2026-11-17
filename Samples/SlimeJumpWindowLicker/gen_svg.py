@@ -17,7 +17,7 @@ def save(name, s):
 
 
 # ================================================================ the hero: a slime in a white leisure suit, with a cane and an umbrella
-def hero(bob=0, lean=0, tilt=0, la=(-12, 6), ra=(12, 6), lf=-5, rf=5, rf_lift=0, lf_lift=0, bend=3, open_=0.2, cane=True, umbrella=0, shades=True, crazy=0.0, w=80, h=92):
+def hero(bob=0, lean=0, tilt=0, la=(-12, 6), ra=(12, 6), lf=-5, rf=5, rf_lift=0, lf_lift=0, bend=3, open_=0.2, cane=True, cane_ang=0, umbrella=0, shades=True, crazy=0.0, w=80, h=92):
     b = []
     hip_y, sh_y = 64 + bob, 46 + bob
     lx, rx = 40 + lean * 0.3, 40 + lean * 0.3
@@ -31,7 +31,8 @@ def hero(bob=0, lean=0, tilt=0, la=(-12, 6), ra=(12, 6), lf=-5, rf=5, rf_lift=0,
     rh = (40 + 9 + ra[0] + lean * 0.5, sh_y + ra[1])
     lh = (40 - 9 + la[0] + lean * 0.5, sh_y + la[1])
     if cane:
-        tip = (rh[0] + 1.5, min(88, rh[1] + 30))
+        a_ = math.radians(cane_ang)
+        tip = (rh[0] + 1.5 + 30 * math.sin(a_), min(88, rh[1] + 30 * math.cos(a_)))
         b.append(line(rh[0], rh[1] - 3, tip[0], tip[1], "#2a1a3a", 3.4))
         b.append(line(rh[0], rh[1] - 3, tip[0], tip[1], "#c9c9d6", 1.8))
         b.append(circle(rh[0], rh[1] - 4, 3.2, "#e8e8f4", sw=1.6))
@@ -108,7 +109,7 @@ def face_gen():
 
 
 # ================================================================ the dancers: a pink (or yellow, blue, lilac) blob in a bikini, wearing the grin
-def dancer(color=PINK, suit="#ff4f87", morph=1.0, sway=0, arms=(-1, -1), legs=(-6, 6), lift=0, bob=0, w=70, h=92, seed=3, bow=True):
+def dancer(color=PINK, suit="#ff4f87", morph=1.0, sway=0, arms=(-1, -1), legs=(-6, 6), lift=0, bob=0, w=70, h=92, seed=3, bow=True, face_s=1.0):
     b = []
     cx = 35 + sway * 0.5
     for side, fx in ((-1, legs[0]), (1, legs[1])):
@@ -128,7 +129,7 @@ def dancer(color=PINK, suit="#ff4f87", morph=1.0, sway=0, arms=(-1, -1), legs=(-
     if morph < 1:
         b.append(f'<g opacity="{f(1 - morph)}">{cute_face(cx, fy, 1.05, blush=suit)}</g>')
     if morph > 0:
-        b.append(f'<g opacity="{f(min(1, morph * 1.4))}">{grin(cx, fy + 2, s=0.95 * (0.5 + 0.5 * morph), open_=0.5, shades=morph > 0.45, crazy=0.6)}</g>')
+        b.append(f'<g opacity="{f(min(1, morph * 1.4))}">{grin(cx, fy + 2, s=0.95 * (0.5 + 0.5 * morph) * face_s, open_=0.5, shades=morph > 0.45, crazy=0.6)}</g>')
     if bow:
         b.append(poly([(cx + 4, 30 + bob), (cx - 6, 24 + bob), (cx - 6, 34 + bob)], suit, sw=1.5))
         b.append(poly([(cx + 4, 30 + bob), (cx + 14, 24 + bob), (cx + 14, 34 + bob)], suit, sw=1.5))
@@ -373,8 +374,267 @@ def veil_girl(w=70, h=92):
     return dancer(PINK, "#ffffff", morph=1.0, arms=(0.2, 0.2), legs=(-4, 4), seed=3, bow=False).replace("</svg>", f'<path d="M20 28 Q35 8 50 28 L58 70 Q35 60 12 70 Z" fill="#ffffff" opacity="0.7" stroke="{OUT}" stroke-width="1.8"/></svg>')
 
 
+# ================================================================ more of the video: poses, the long limo, grinning grannies and kids, the sun, foam, corks, static
+def warp_svg(s, sx=1.0, sy=1.0, rot=0.0, cx=110, cy=80):
+    i, j = s.index(">") + 1, s.rindex("</svg>")
+    return s[:i] + f'<g transform="translate({cx} {cy}) rotate({f(rot)}) scale({f(sx)} {f(sy)}) translate({-cx} {-cy})">' + s[i:j] + "</g></svg>"
+
+
+def more_hero():
+    save("hero_pose_02.svg", hero(lean=-3, tilt=-6, la=(-8, 6), ra=(20, -10), cane_ang=-70, open_=0.8, lf=-6, rf=8))                 # ushering: the cane points the way
+    save("hero_pose_03.svg", hero(lean=-8, tilt=-18, la=(-6, 10), ra=(14, 12), bend=6, bob=8, open_=0.5, lf=-9, rf=8))                # a deep bow
+    save("hero_pose_04.svg", hero(lean=-6, tilt=-10, la=(-14, 4), ra=(14, 4), lf=-14, rf=14, bob=14, open_=1.0, umbrella=1.0))         # the splits, with umbrella
+    for i, ang in enumerate((0, 60, 120, 180, 240, 300)):                                                                          # the cane twirl
+        save(f"hero_twirl_{i:02d}.svg", hero(lean=(-3, 0, 3, 0, -3, 0)[i], tilt=(-6, 0, 6, 0, -6, 0)[i], la=(-14, -16), ra=(10, -16), cane_ang=ang, rf_lift=(0, 7, 0, 0, 0, 7)[i], lf_lift=(0, 0, 0, 7, 0, 0)[i],
+                                             open_=0.8, umbrella=(0, 0, 0.5, 1.0, 0.5, 0)[i]))
+    for i, (sx, sy, r) in enumerate(((1.0, 1.0, 0), (1.5, 0.8, -3), (0.8, 1.4, 4), (1.9, 0.7, 0), (1.2, 1.2, 7), (2.4, 1.0, -5))):    # the face, stretched like the video's
+        save(f"hero_zoom_{i:02d}.svg", warp_svg(hero_face(open_=(0.9, 1.0, 0.6, 1.0, 0.9, 1.0)[i], crazy=(0, 0.4, 0.8, 1.0, 0.6, 1.0)[i], shades=i % 2 == 0), sx, sy, r))
+
+
+def granny(color="#c9b8ff", step=0, arms=(0.5, 0.5), w=70, h=92, face_s=1.0):
+    s = dancer(color, "#6a4fb0", morph=1.0, face_s=face_s, sway=(-3, 0, 3, 0)[step % 4], arms=arms, legs=(-5, 5), bob=(0, -2, 0, 2)[step % 4], seed=41, bow=False)
+    cx = 35 + (-3, 0, 3, 0)[step % 4] * 0.5
+    hair = (f'<circle cx="{f(cx)}" cy="{f(24 + (0, -2, 0, 2)[step % 4])}" r="7" fill="#e8e8f4" stroke="{OUT}" stroke-width="1.8"/>'
+            f'<circle cx="{f(cx - 9)}" cy="{f(42 + (0, -2, 0, 2)[step % 4])}" r="5" fill="none" stroke="{OUT}" stroke-width="1.6"/><circle cx="{f(cx + 9)}" cy="{f(42 + (0, -2, 0, 2)[step % 4])}" r="5" fill="none" stroke="{OUT}" stroke-width="1.6"/>'
+            f'<line x1="{f(cx + 33)}" y1="40" x2="{f(cx + 33)}" y2="88" stroke="{OUT}" stroke-width="3"/>')
+    return s.replace("</svg>", hair + "</svg>")
+
+
+def kid(color="#7ee8b5", step=0, w=70, h=92, face_s=1.0):
+    s = dancer(color, "#ff8a2a", morph=1.0, face_s=face_s, sway=(4, 0, -4, 0)[step % 4], arms=(1, 1) if step % 2 else (0.2, 0.2), legs=(-4, 4), bob=(0, -4, 0, -4)[step % 4], lift=(0, 5, 0, 0)[step % 4], seed=17, bow=False)
+    cx = 35 + (4, 0, -4, 0)[step % 4] * 0.5
+    y = 28 + (0, -4, 0, -4)[step % 4]
+    prop = (f'<ellipse cx="{f(cx)}" cy="{y}" rx="11" ry="3" fill="#ff5a5a" stroke="{OUT}" stroke-width="1.6"/>'
+            f'<line x1="{f(cx)}" y1="{y}" x2="{f(cx)}" y2="{y - 6}" stroke="{OUT}" stroke-width="2"/>'
+            f'<ellipse cx="{f(cx + (-8 if step % 2 else 8))}" cy="{y - 6}" rx="9" ry="2" fill="#ffd84a" stroke="{OUT}" stroke-width="1.4"/>')
+    return s.replace("</svg>", prop + "</svg>")
+
+
+def limo_mid(w=460, h=62):
+    b = [f'<path d="M0 18 L460 18 L460 52 L0 52 Z" fill="#fffdf4" stroke="{OUT}" stroke-width="2.6" stroke-linejoin="round"/>']
+    for i in range(12):
+        a = 6 + i * 38
+        b.append(rect(a, 22, 30, 15, "#1d1830", r=3, sw=1.8))
+        b.append(line(a + 5, 26, a + 12, 26, "#6a6a9a", 1.4))
+    b.append(line(0, 42, 460, 42, "#e0d8c8", 2))
+    for cx in (70, 230, 390):
+        b.append(circle(cx, 52, 8.6, "#201428", sw=2))
+        b.append(circle(cx, 52, 4, "#e8e8f4", sw=1.4))
+    return svg(w, h, "".join(b))
+
+
+def limo_tail(w=460, h=62):
+    b = [f'<path d="M0 18 L420 18 Q452 20 456 40 L456 52 L0 52 Z" fill="#fffdf4" stroke="{OUT}" stroke-width="2.6" stroke-linejoin="round"/>']
+    for i in range(10):
+        a = 6 + i * 38
+        b.append(rect(a, 22, 30, 15, "#1d1830", r=3, sw=1.8))
+    b.append(line(0, 42, 452, 42, "#e0d8c8", 2))
+    b.append(circle(446, 36, 3.6, "#ff6a6a", sw=1.6))
+    for cx in (70, 230, 390):
+        b.append(circle(cx, 52, 8.6, "#201428", sw=2))
+        b.append(circle(cx, 52, 4, "#e8e8f4", sw=1.4))
+    b.append(rect(420, 8, 28, 10, "#ff5a8a", r=3, sw=2))      # a fin at the back, because it is a lot of car
+    return svg(w, h, "".join(b))
+
+
+def sun(pulse=0.0, w=100, h=100):
+    b = []
+    for i in range(14):
+        a = i * math.tau / 14
+        r0, r1 = 34, 44 + 8 * pulse * (1 if i % 2 else -0.6)
+        b.append(line(50 + math.cos(a) * r0, 50 + math.sin(a) * r0, 50 + math.cos(a) * r1, 50 + math.sin(a) * r1, "#ffb000", 4))
+    b.append(blob(50, 50, 30, 30, "#ffe45a", n=12, wob=0.02, seed=3, sw=2.6))
+    b.append(grin(50, 52, s=1.45, open_=0.5 + 0.4 * pulse, shades=True, crazy=0.4))
+    return svg(w, h, "".join(b))
+
+
+def beach_ball(step=0, w=40, h=40):
+    ang = step * 40
+    cols = ["#ff4f87", "#ffd84a", "#3cdcff", "#ffffff", "#9cff7a", "#ff8a2a"]
+    b = [f'<g transform="rotate({ang} 20 20)">']
+    for i in range(6):
+        a0, a1 = math.radians(i * 60), math.radians(i * 60 + 60)
+        b.append(f'<path d="M20 20 L{f(20 + 17 * math.cos(a0))} {f(20 + 17 * math.sin(a0))} A17 17 0 0 1 {f(20 + 17 * math.cos(a1))} {f(20 + 17 * math.sin(a1))} Z" fill="{cols[i]}" stroke="{OUT}" stroke-width="1.2"/>')
+    b.append("</g>")
+    b.append(circle(20, 20, 17, "none", sw=2.4))
+    return svg(w, h, "".join(b))
+
+
+def spray(k=0.0, w=320, h=180, seed=1):
+    r = random.Random(seed)
+    b = []
+    n = int(10 + 70 * k)
+    for i in range(n):
+        a = math.radians(-90 + 70 * (r.random() - 0.5) * (0.5 + k))
+        d = (20 + 160 * k) * (0.2 + 0.8 * r.random())
+        x, y = 160 + math.sin(a) * d * 1.4, 170 - math.cos(a) * d
+        b.append(circle(x, y, 3 + 14 * r.random() * (0.4 + k * 0.6), "#fffdf4", sw=1.6))
+    b.append(blob(160, 170, 20 + 70 * k, 12 + 26 * k, "#fffdf4", n=10, wob=0.15, seed=seed, sw=2.4))
+    return svg(w, h, "".join(b))
+
+
+def cork(step=0, w=24, h=24):
+    return svg(w, h, f'<g transform="rotate({step * 55} 12 12)">' + rect(5, 3, 14, 18, "#d9a35a", r=3, sw=1.8) + line(5, 9, 19, 9, "#a97a3a", 1.2) + line(5, 15, 19, 15, "#a97a3a", 1.2) + "</g>")
+
+
+def static(seed=0, w=320, h=180):
+    r = random.Random(seed)
+    b = [rect(0, 0, w, h, "#3a3a4a", sw=0)]
+    for _ in range(260):
+        x, y, ww = r.random() * w, r.random() * h, 6 + r.random() * 60
+        b.append(f'<rect x="{f(x)}" y="{f(y)}" width="{f(ww)}" height="{f(1 + r.random() * 5)}" fill="{r.choice(["#ffffff", "#9a9ab2", "#1a1a24", "#ff3cac", "#3cdcff"])}" opacity="0.8"/>')
+    return svg(w, h, "".join(b))
+
+
+def palm_sway(step=0, w=60, h=120):
+    lean = (-6, 0, 6, 0)[step % 4]
+    top = (30 + lean, 20)
+    b = [f'<path d="M26 118 Q{f(28 + lean * 0.4)} 70 {f(top[0] - 2)} {f(top[1])} L{f(top[0] + 3)} {f(top[1])} Q34 70 36 118 Z" fill="#a96a3a" stroke="{OUT}" stroke-width="2.4" stroke-linejoin="round"/>']
+    for k, a in enumerate((-160, -125, -90, -55, -20)):
+        r = math.radians(a + lean * 2)
+        b.append(f'<path d="M{f(top[0])} {f(top[1])} Q{f(top[0] + math.cos(r) * 20)} {f(top[1] + math.sin(r) * 20 - 8)} {f(top[0] + math.cos(r) * 32)} {f(top[1] + math.sin(r) * 26 + 6)} Q{f(top[0] + math.cos(r) * 18)} {f(top[1] + math.sin(r) * 14)} {f(top[0])} {f(top[1] + 3)} Z" fill="#37b36a" stroke="{OUT}" stroke-width="2" stroke-linejoin="round"/>')
+    b.append(circle(top[0] - 2, top[1] + 4, 3.2, "#7a4a2a", sw=1.6))
+    b.append(circle(top[0] + 3, top[1] + 5, 3.2, "#7a4a2a", sw=1.6))
+    return svg(w, h, "".join(b))
+
+
+def more_gen():
+    more_hero()
+    for i in range(4):
+        save(f"granny_{i:02d}.svg", granny(step=i, arms=(0.9, 0.2) if i % 2 else (0.2, 0.9)))
+        save(f"kid_{i:02d}.svg", kid(step=i))
+    save("limo_mid.svg", limo_mid())
+    save("limo_tail.svg", limo_tail())
+    for i, p in enumerate((0.0, 0.6, 1.0, 0.6)):
+        save(f"sun_{i:02d}.svg", sun(p))
+    for i in range(6):
+        save(f"ball_{i:02d}.svg", beach_ball(i))
+        save(f"cork_{i:02d}.svg", cork(i))
+    for i, k in enumerate((0.05, 0.2, 0.4, 0.65, 0.85, 1.0)):
+        save(f"spray_{i:02d}.svg", spray(k, seed=i + 3))
+    for i in range(4):
+        save(f"static_{i:02d}.svg", static(i))
+        save(f"palm_sway_{i:02d}.svg", palm_sway(i))
+
+
+# ================================================================ close-ups of the hero's face: extreme crops, the fisheye, coloured lights, the face popping onto other bodies, breath on the glass, the eye-roll
+FACE_BLOB = lambda fill=GREEN, extra="", sw=4: blob(110, 86, 96, 68, fill, n=12, wob=0.03, seed=7, flat=0.12, sw=sw, extra=extra)
+
+
+def grin_cu(size, w=220, h=160):
+    my = 70
+    return svg(w, h, rect(0, 0, w, h, GREEN, sw=0) + grin(110, my - 5 * size, s=size, open_=0.5 + 0.1 * size / 5, shades=False, eyes=False))
+
+
+def shades_cu(size, glint=0.0, w=220, h=160):
+    ey = 80
+    body = rect(0, 0, w, h, GREEN, sw=0) + grin(110, ey + 6.5 * size, s=size, shades=True, mouth=True, eyes_y=-6.5)
+    for sx in (-1, 1):                                                        # a streak of light slides over the lenses
+        x = 110 + sx * 8 * size
+        body += line(x - 2.5 * size + glint * 4 * size, ey - 2.4 * size, x - 0.5 * size + glint * 4 * size, ey + 2.2 * size, "#d8d0ff", 0.9 * size, extra='opacity="0.85"')
+    return svg(w, h, body)
+
+
+def fisheye(k, w=220, h=160):
+    t = k * math.tau / 6
+    sh = 7.6 + 1.2 * math.sin(t)
+    ml = 3.4 + 0.9 * math.cos(t)
+    ox = 5 * math.sin(t * 2)
+    b = [rect(0, 0, w, h, "#2a1048", sw=0), blob(110 + ox * 0.3, 80, 150, 112 + 6 * math.cos(t), GREEN, n=12, wob=0.045, seed=7 + k, flat=0.05, sw=5)]
+    b.append(grin(110 + ox, 52 + 3 * math.sin(t), s=sh, shades=True, mouth=False, eyes_y=0))
+    b.append(grin(110 + ox * 0.5, 120 - 3 * math.cos(t), s=ml, open_=0.6 + 0.4 * math.sin(t), shades=False, eyes=False))
+    b.append(f'<path d="M0 0H220V160H0Z M110 80 m-104 0 a104 77 0 1 0 208 0 a104 77 0 1 0 -208 0" fill="#000000" fill-rule="evenodd" opacity="0.7"/>')
+    b.append(f'<ellipse cx="110" cy="80" rx="104" ry="77" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.25"/>')
+    return svg(w, h, "".join(b))
+
+
+def lit(color, level, w=220, h=160, open_=0.6):
+    glow, tint = {"red": ("#ff2a3a", "#ff0033"), "blue": ("#2a6aff", "#0a3cff")}[color]
+    dark = level == 3
+    a = (0.2, 0.42, 0.62, 0.3)[level]
+    b = [rect(0, 0, w, h, "#1a1030", sw=0), rect(0, 0, w, h, glow, sw=0, extra=f'opacity="{f(a * 0.8)}"'),
+         FACE_BLOB(sw=4), grin(110, 86, s=3.8, open_=open_, shades=True, eyes_y=-6.5)]
+    b.append(FACE_BLOB(tint, f'opacity="{f(a)}"', sw=0))
+    b.append(f'<path d="M20 70 Q60 20 120 14" fill="none" stroke="#ffffff" stroke-width="{3 + 5 * a}" stroke-linecap="round" opacity="{f(0.3 + a * 0.5)}"/>')   # a rim light
+    return svg(w, h, "".join(b))
+
+
+def host_frog(face_s, w=80, h=70):
+    b = [f'<ellipse cx="22" cy="64" rx="9" ry="4" fill="#2c8a4a" stroke="{OUT}" stroke-width="2"/><ellipse cx="58" cy="64" rx="9" ry="4" fill="#2c8a4a" stroke="{OUT}" stroke-width="2"/>',
+         blob(40, 48, 29, 21, "#2f9a4f", n=11, wob=0.03, seed=2, flat=0.2, sw=2.4),
+         circle(24, 24, 7, "#ffffff", sw=2) + circle(56, 24, 7, "#ffffff", sw=2) if face_s < 0.5 else ""]
+    if face_s >= 0.5:
+        b.append(blob(40, 42, 24 * face_s ** 0.5, 17 * face_s ** 0.5, GREEN, n=11, wob=0.03, seed=5, flat=0.1, sw=2.2))
+    b.append(grin(40, 42, s=0.62 * face_s, open_=0.6, shades=True, crazy=0.4, eyes_y=-6.5))
+    return svg(w, h, "".join(b))
+
+
+def host_car(face_s, w=140, h=56):
+    base = car_front(0)
+    face = blob(70, 24, 30 * face_s, 15 * face_s, GREEN, n=11, wob=0.03, seed=5, flat=0.1, sw=2.2) + grin(70, 24, s=0.7 * face_s, open_=0.6, shades=True, eyes_y=-6.5)
+    return base.replace("</svg>", face + "</svg>")
+
+
+def fogged(k, w=220, h=160):
+    fog = (0.15, 0.4, 0.7, 1.0, 0.55)[k]
+    b = [rect(0, 0, w, h, "#bfe9ff", sw=0), rect(0, 0, w, h, "#7ec8f0", sw=0, extra='opacity="0.35"')]
+    b.append(blob(110, 98, 108 + 4 * (k % 2), 56 + 3 * (k % 2), GREEN, n=12, wob=0.05, seed=11, flat=0.0, sw=4))     # a face squashed flat against the pane
+    b.append(f'<ellipse cx="34" cy="108" rx="20" ry="14" fill="{GREEN}" stroke="{OUT}" stroke-width="3"/><ellipse cx="186" cy="108" rx="20" ry="14" fill="{GREEN}" stroke="{OUT}" stroke-width="3"/>')
+    b.append(grin(110, 92, s=3.1, open_=0.1, shades=True, eyes_y=-7.5))
+    for i in range(7):                                                       # the breath: puffs of white fog growing round the mouth
+        a = i * 0.9 + k
+        r = (14 + 26 * fog) * (0.6 + 0.4 * ((i * 37) % 10) / 10)
+        b.append(circle(110 + math.cos(a) * 52 * fog, 118 + math.sin(a) * 22 * fog, r, "#ffffff", sw=0, extra=f'opacity="{f(0.15 + 0.4 * fog)}"'))
+    b.append(rect(0, 0, w, h, "#ffffff", sw=0, extra=f'opacity="{f(0.1 + 0.22 * fog)}"'))
+    b.append(f'<path d="M30 30 L90 12 L80 36 Z M170 140 L210 128 L204 150 Z" fill="#ffffff" opacity="0.45"/>')
+    if k >= 2:
+        b.append(f'<path d="M96 134 q-2 {10 * fog:.0f} 0 {20 * fog:.0f}" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/><path d="M124 132 q2 {8 * fog:.0f} 0 {16 * fog:.0f}" stroke="#ffffff" stroke-width="3" fill="none" opacity="0.7" stroke-linecap="round"/>')
+    if k == 4:
+        b.append(f'<path d="M20 60 Q60 20 120 40 Q170 56 200 30" fill="none" stroke="#e8f8ff" stroke-width="16" stroke-linecap="round" opacity="0.6"/>')      # a wipe with a hand
+    return svg(w, h, "".join(b))
+
+
+def eyeroll(k, w=220, h=160):
+    ang = math.radians(-135 + k * 45)
+    b = [rect(0, 0, w, h, GREEN, sw=0), FACE_BLOB(sw=4)]
+    for sx in (-1, 1):
+        cx, cy = 110 + sx * 38, 62
+        b.append(circle(cx, cy, 31, "#ffffff", sw=4))
+        px, py = cx + math.cos(ang) * 16, cy + math.sin(ang) * 16
+        b.append(circle(px, py, 11, "#15101c", sw=0))
+        b.append(circle(px - 3, py - 3, 3, "#ffffff", sw=0))
+        lid = 6 if k in (7,) else -34 + (0 if k < 7 else 0)
+        b.append(f'<path d="M{cx - 36} {cy - 24 + 0} Q{cx} {cy - 44 + sx * 0} {cx + 36} {cy - 24}" fill="none" stroke="{OUT}" stroke-width="5" stroke-linecap="round"/>')
+    b.append(grin(110, 112, s=2.4, open_=0.2, shades=False, eyes=False))
+    return svg(w, h, "".join(b))
+
+
+def closeups_gen():
+    for i, sz in enumerate((5.0, 7.5, 10.5, 14.0)):
+        save(f"grin_cu_{i:02d}.svg", grin_cu(sz))
+    for i, sz in enumerate((5.5, 8.0, 11.0, 15.0)):
+        for j, gl in enumerate((0.0, 0.5, 1.0)):
+            save(f"shades_cu_{i:02d}_{j}.svg", shades_cu(sz, gl))
+    for i in range(6):
+        save(f"hero_fish_{i:02d}.svg", fisheye(i))
+    for col in ("red", "blue"):
+        for lv in range(4):
+            save(f"hero_lit_{col}_{lv:02d}.svg", lit(col, lv, open_=(0.4, 0.8, 1.0, 0.6)[lv]))
+    for i, fs in enumerate((0.12, 1.35, 0.88, 1.0)):
+        save(f"popfrog_{i:02d}.svg", host_frog(fs))
+        save(f"popgranny_{i:02d}.svg", granny(step=i, arms=(0.9, 0.2), face_s=fs))
+        save(f"popkid_{i:02d}.svg", kid(step=i, face_s=fs))
+        save(f"popcar_{i:02d}.svg", host_car(fs))
+    for i in range(5):
+        save(f"hero_fog_{i:02d}.svg", fogged(i))
+    for i in range(8):
+        save(f"hero_roll_{i:02d}.svg", eyeroll(i))
+
+
 def main():
     hero_gen()
+    more_gen()
+    closeups_gen()
     face_gen()
     dancers_gen()
     dancer_face_gen()
