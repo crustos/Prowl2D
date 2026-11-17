@@ -7,6 +7,7 @@ from PIL import Image, ImageChops
 
 from ..runtime import Level
 from .captions import draw_caption
+from .fx import apply as apply_fx
 from .gif import _gradient, _over, _skin_image, _veil, layer_offset
 from .sprites import Sprites, color
 
@@ -92,6 +93,9 @@ def render_scene(level: Level, out_path: str, *, tile_px: int = 20, fps: int | N
 
     def frame(i: int) -> Image.Image:
         t = i / fps
+        hold = sc.stutter_at(t)
+        if hold:
+            t = math.floor(t / hold) * hold
         cx, cy, zoom = sc.camera(t)
         zoom = max(0.2, zoom)
         wcols, wrows = vcols / zoom, vrows / zoom
@@ -133,6 +137,9 @@ def render_scene(level: Level, out_path: str, *, tile_px: int = 20, fps: int | N
             if entry[0].over:
                 draw_layer(out, entry, t, left, topc)
         out = out.resize((out_w, out_h), Image.LANCZOS) if out.size != (out_w, out_h) else out
+        fxs = [e for e in sc.fx_at(i / fps) if e[0] != "stutter"]
+        if fxs:
+            out = apply_fx(out.convert("RGB"), fxs, i).convert("RGBA")
         for cap in sc.captions:
             draw_caption(out, cap, t - cap["t"])
         alpha, col = sc.fade(t)
