@@ -147,6 +147,32 @@ and the same spawn, goal, size, entities and wall rectangles (only the order of 
 hazards some distance). That's the *swim* mode used by the underwater level. A platformer mode (gravity, jumps)
 is the natural next piece, since the Mario-style sample needs it.
 
+## kaomojilang tiles: characters drawn with numbers
+
+[kaomojilang](../kaomojilang/SPEC.md) (vendored in `tools/kaomojilang`, from the geonodes repo; see its VENDORED.md) draws SVG shapes from
+numbers placed in text, and animates them (eyes that look and blink, vowel mouths, emotions). A tile can be one of its shapes:
+
+```
+def 🗣 -> kmj("face_anim.kmj", "talk", fps=5), size(4, 4), bg:          ## a list of shapes = an animation, cycled at fps
+
+def 🐻 -> kmj("bear.kmj", "bear"), size(4, 4):                           ## a shape def = one picture
+def 👁 -> kmj("face_anim.kmj", "eye", scale={10: 0}), size(1, 1):        ## keyword arguments go to the shape def
+```
+
+`kmj(file, name, *args, fps=6, **kwargs)`: the file is relative to the `.lvl`; `name` is a shape def (called with the arguments), a shape, or a list of shapes (frames share one canvas, so they line up);
+without a name the file's last variable is used. A tile definition body runs to the next blank line, so leave one between `def`s. Size the tile with `size(w, h)` (the picture is fitted to it).
+`examples/kaomoji.lvl` places five of them. Needs no Blender: `python -m levelang gif examples/kaomoji.lvl`. The Blender export (`export-blender`) draws the first frame of an animated tile.
+
+## A story: say() and title()
+
+```python
+title(34, "Chapter 1", "The girl on the hill")          ## a chapter card, shown when the slime gets to column 34
+say(48, "Oh! Hello, little slime.", who="Gelly")          ## a line of dialogue
+```
+
+The preview GIF stops the bot at each line for its `seconds` (default 3.5; a title 4.5) and shows it over the picture. `python3 tools/levelang export-story level.lvl -o Story.cs` writes the lines as a C# class
+(`Story.Count`, `Story.X(i)`, `Story.Text(i)`, `if` chains: the C build's subset) for a game to print as the player passes them; see `Samples/SlimeJumpRPG`.
+
 ## Blender: grease pencil, animated like the GIF
 
 ```sh
