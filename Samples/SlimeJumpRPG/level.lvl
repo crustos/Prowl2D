@@ -1,0 +1,246 @@
+## SlimeJumpRPG: how SlimeJump met his first girlfriend, and married her after many trials and tribulations.
+##
+## One long level (200 x 20 cells), six chapters left to right.  The physics is SlimeJump's (the same scripts; Level.cs is generated from
+## this file), the people are drawn with kaomojilang in kmj/*.kmj (numbers and symbols in text), and the story is told with title() and say():
+## they show up in the preview GIF and are printed by the game as the slime gets to them (Story.cs is generated too).
+##
+##     python3 tools/levelang export-cs    Samples/SlimeJumpRPG/level.lvl -o Samples/SlimeJumpRPG/Level.cs --layers-from Samples/SlimeJump/Level.cs
+##     python3 tools/levelang export-story Samples/SlimeJumpRPG/level.lvl -o Samples/SlimeJumpRPG/Story.cs
+##     python3 tools/levelang gif          Samples/SlimeJumpRPG/level.lvl --view 40x20 --tile 16 --fps 12 -o Samples/SlimeJumpRPG/level.gif
+
+meta(width=200, height=20)
+background("#9fd8ff", "#e8f6ff")
+
+K = "kmj/"
+
+## ---------------------------------------------------------------- terrain (solid -> walls)
+def 🟩 -> fill.yellowgreen, stroke.forestgreen, solid:
+,  '  ,   .
+  .  ,  '  ,
+
+def 🟫 -> fill.peru, stroke.sienna, solid:
+.  :   '  .
+ '  .  :  '
+
+def 🪨 -> fill.slategray, stroke.dimgray, solid:
+ .  :  '  .
+:  '  .  :
+
+def 🧱 -> fill.firebrick, stroke.maroon, solid:
+= = = =
+ = = = =
+
+def 🌉 -> fill.burlywood, stroke.sienna, crumbly:
+| | | |
+| | | |
+
+## ---------------------------------------------------------------- gameplay things, drawn with kaomojilang
+def 🟢 -> kmj(K + "slime.kmj", "idle", fps=6, margin=0), size(1.7, 1.2), spawn, at(0.5, 0.575):
+
+def 🌿 -> kmj(K + "props.kmj", "vine_rest", margin=0), size(1, 1), climb, bg, sway(0.04):
+
+def 🌵 -> kmj(K + "props.kmj", "thorns_rest", margin=0), size(1.2, 1), hazard:
+
+def 💗 -> kmj(K + "props.kmj", "gem", fps=5, margin=0), size(0.9, 0.9), item:
+
+def 🌸 -> kmj(K + "props.kmj", "bloom", fps=3, margin=0), size(1, 1), save, at(0.5, 0):
+
+def 🐸 -> kmj(K + "frog.kmj", "croak", fps=3, margin=0), size(2, 1.6), enemy(0), at(0.5, 0.3):
+
+def 🦇 -> kmj(K + "bat.kmj", "wings", fps=10, margin=0), size(2.1, 1.6), enemy(1), bob:
+
+def 🐲 -> kmj(K + "dragon.kmj", "glare", fps=3, margin=0), size(3, 3), enemy(1):
+
+def 💒 -> kmj(K + "props.kmj", "wedding", fps=4, margin=0), size(3, 3), goal, at(0.5, 0):
+
+def 🏹 -> fill.dimgray, stroke.white, solid, shooter(-1, 0):
+<  <
+ <  <
+
+## ---------------------------------------------------------------- people and scenery (no flags: pictures only)
+def 👧 -> kmj(K + "gelly.kmj", "wave", fps=4, margin=0), size(2.3, 2), bg:
+
+def 🥺 -> kmj(K + "gelly.kmj", "cry", fps=4, margin=0), size(2.3, 2), bg:
+
+def 👰 -> kmj(K + "gelly.kmj", "bride_love", fps=5, margin=0), size(3, 2.6), bg:
+
+def 🤵 -> kmj(K + "slime.kmj", "love", fps=5, margin=0), size(2.4, 1.7), bg:
+
+def 🐉 -> kmj(K + "dragon.kmj", "glare", fps=3, margin=0), size(4, 4), bg:
+
+def 🌳 -> kmj(K + "props.kmj", "tree_sway", fps=2, margin=0), size(4, 4), bg:
+
+def 🍀 -> kmj(K + "props.kmj", "bush_rest", margin=0), size(2, 1.5), bg:
+
+def ⛅ -> kmj(K + "props.kmj", "cloud_rest", margin=0), size(6, 2), bg:
+
+def 🌄 -> kmj(K + "props.kmj", "hill_rest", margin=0), size(16, 6), bg:
+
+def 🏰 -> kmj(K + "props.kmj", "castle_rest", margin=0), size(15, 7), bg:
+
+## ---------------------------------------------------------------- helpers (plain Python)
+W, H, F = 200, 20, 16                    ## width, height, the first row of the ground
+
+def fill_rect(tile, x0, y0, x1, y1):     ## inclusive cells
+    for cx in range(x0, x1 + 1):
+        for cy in range(y0, y1 + 1):
+            place(tile, cx, cy)
+
+def ground(x0, x1, top=F):               ## a strip of grass over dirt, down to the bottom row
+    for cx in range(x0, x1 + 1):
+        place(🟩, cx, top)
+        for cy in range(top + 1, H):
+            place(🟫, cx, cy)
+
+def pit(x0, x1, depth=2):                ## a pit with thorns at the bottom
+    ground(x0, x1, F + depth)
+    for cx in range(x0, x1 + 1):
+        place(🌵, cx, F + depth - 1)
+
+def pillar(x0, x1, top, tile=🪨):        ## solid from `top` down to the floor
+    fill_rect(tile, x0, top, x1, F - 1)
+
+## ---------------------------------------------------------------- the world
+## chapter 1: the meadow
+ground(1, 34)
+ground(14, 16, 15)
+ground(25, 26, 15)
+ground(27, 30, 14)
+ground(31, 32, 15)
+fill_rect(🪨, 0, 0, 0, H - 1)            ## the walls of the world
+fill_rect(🪨, W - 1, 0, W - 1, H - 1)
+place(🟢, 3, 15)
+place(🌸, 22, 15)
+place(💗, 18, 12)
+place(💗, 28, 11)
+
+## chapter 2: the girl on the hill
+ground(35, 35)
+pit(36, 39)
+ground(40, 40)
+ground(41, 43, 15)
+ground(44, 58, 13)                       ## her hill
+ground(59, 70)
+place(👧, 49, 12)
+place(🐸, 54, 12)
+place(🌸, 57, 12)
+place(💗, 46, 10)
+place(🐉, 63, 6)
+
+## chapter 3: the thorn wood
+ground(71, 74)
+pit(75, 77)                              ## thorns live in pits: the slime jumps what it cannot stand on
+ground(78, 84)
+pit(85, 87)
+ground(88, 101)
+fill_rect(🪨, 93, 8, 100, F - 1)         ## a cliff, with a vine to climb
+for cy in range(8, F):
+    place(🌿, 92, cy)
+place(🦇, 80, 10)
+place(🦇, 89, 9)
+place(💗, 82, 12)
+place(💗, 96, 5)
+place(🌸, 72, 15)
+place(🐸, 98, 7)
+
+## chapter 4: the crumbling bridge
+ground(101, 103)
+ground(132, 136)
+for cx in range(104, 132):
+    place(🌉, cx, F)
+    place(🌵, cx, H - 1)
+place(🏹, 133, 15)
+place(🌸, 102, 15)
+place(💗, 112, 12)
+place(💗, 124, 12)
+place(🦇, 118, 10)
+
+## chapter 5: the storm peak
+ground(137, 171)
+pillar(138, 141, 14)
+pillar(145, 148, 13)
+pillar(152, 155, 12)
+pillar(159, 162, 13)
+pillar(166, 169, 14)
+place(🌸, 139, 13)
+place(💗, 147, 9)
+place(💗, 153, 8)
+place(💗, 160, 9)
+place(🐸, 163, 12)
+place(🦇, 150, 8)
+place(🦇, 158, 7)
+
+## chapter 6: the dragon's keep
+ground(172, 198)
+fill_rect(🧱, 176, 11, 177, F - 1)
+fill_rect(🧱, 180, 8, 181, F - 1)
+place(🐲, 184, 11)
+place(🥺, 189, 15)
+place(🌸, 174, 15)
+place(💗, 186, 10)
+place(🦇, 178, 8)
+place(💒, 195, 15)
+place(👰, 192, 14)
+place(🤵, 190, 15)
+
+## smooth ground
+skin(🟩, 🟫, 🪨, wobble=0.12, outline="#3b2a1a", outline_width=0.06, seed=3)
+
+## ---------------------------------------------------------------- scenery: seeded, so the picture is always the same
+seed(21)
+with layer("sky", parallax=0.08):
+    for i in range(14):
+        place(⛅, i * 16 + rand() * 8 - 6, 1 + rand() * 5, size=(5 + rand() * 4, 1.6 + rand() * 1.2), flip=chance(0.5))
+with layer("hills", parallax=0.22, haze=("#7fb8e8", 0.35)):
+    for i in range(10):
+        place(🌄, i * 17 - 6, 9.5, size=(20, 8), flip=i % 2 == 1)
+with layer("trees", parallax=0.5, haze=("#7fb8e8", 0.15)):
+    x = 2
+    while x < 280:
+        place(🌳, x, 12.4 - rand() * 0.4, size=(3.5 + rand() * 2, 3.5 + rand() * 2.4), flip=chance(0.5))
+        x += 5 + rand() * 4
+with layer("growth", parallax=1.0):
+    for cx in range(1, 199):
+        for cy in range(0, H):
+            if not level.cell(cx, cy) and level.cell(cx, cy + 1) and any(p.tile.has("solid") for p in level.cell(cx, cy + 1)) and rand() < 0.12:
+                place(🍀, cx - 0.2, cy - 0.5, size=(1.6, 1.2))
+
+## the castle behind the keep
+with layer("castle", parallax=1.0):
+    place(🏰, 177, 3.5, size=(24, 12))
+
+## ---------------------------------------------------------------- the story: title() is a chapter card, say() a line of dialogue
+title(0, "SlimeJump", "a love story")
+say(6, "What a lovely morning. I wonder what is over that hill.", who="Slime")
+
+title(34, "Chapter 1", "The girl on the hill")
+say(41, "Somebody is up there... somebody pink.", who="Slime")
+say(48, "Oh! Hello, little slime. I'm Gelly.", who="Gelly")
+say(50, "I... I'm... *blushes bright green*", who="Slime")
+say(53, "She is MINE, slime! Sir Croak, suitor, poet, frog!", who="Sir Croak")
+say(58, "A picnic, just us. This is the best day of my life.", who="Slime")
+say(62, "SCREEECH! A shadow falls: Ember the dragon snatches Gelly.", who="Narrator")
+say(66, "Slime! Help me! Please!", who="Gelly")
+say(68, "GELLY!!! I'm coming! I'll find you!", who="Slime")
+
+title(72, "Chapter 2", "The thorn wood")
+say(78, "Bats, thorns, and a cliff. Fine. She is worth it.", who="Slime")
+say(93, "Climb, little slime. Hold on to the vine.", who="Narrator")
+
+title(102, "Chapter 3", "The crumbling bridge")
+say(108, "Every plank falls behind me. Don't look down.", who="Slime")
+say(128, "Arrows! Sir Croak is still jealous.", who="Sir Croak")
+
+title(137, "Chapter 4", "The storm peak")
+say(143, "Higher and higher. She is somewhere up there.", who="Slime")
+say(158, "Just a little further... I can see the keep!", who="Slime")
+
+title(172, "Chapter 5", "The dragon's keep")
+say(176, "Ember! Let her go!", who="Slime")
+say(184, "Roar! Nobody beats Ember. Ha! ...oh. Hello? Hot sauce?", who="Ember")
+say(188, "You came for me! I knew you would.", who="Gelly")
+
+title(190, "Chapter 6", "Happily ever after")
+say(191.2, "Gelly, I'd cross a thousand bridges. Will you marry me?", who="Slime")
+say(192.4, "Yes! A thousand times, yes!", who="Gelly")
+say(193.6, "And Sir Croak sat in the back row, and cried, and clapped.", who="Narrator")
