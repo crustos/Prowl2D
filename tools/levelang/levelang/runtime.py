@@ -52,7 +52,7 @@ FLAGS = ("solid", "hazard", "item", "spawn", "goal", "bg", "fg", "climb", "save"
 ANIMS = ("sway", "bob", "swim")
 # valued attributes that end up in Tile.params: enemy(kind), shooter(dx, dy), at(ax, ay) = where in its cell an entity stands
 PARAM_ATTRS = ("enemy", "shooter", "at")
-ATTR_NAMES = FLAGS + ANIMS + PARAM_ATTRS + ("fill", "stroke", "svg", "size", "kmj")
+ATTR_NAMES = FLAGS + ANIMS + PARAM_ATTRS + ("fill", "stroke", "svg", "size", "kmj", "svgs")
 
 
 class Tile:
@@ -215,6 +215,7 @@ class Level:
         self.layers: list[Layer] = []          # parallax layers, back to front within the "behind" and the "over" groups
         self.skins: list[Skin] = []            # smooth outlines over blocky tiles
         self.captions: list[dict] = []         # the story: say() / title() lines shown when the player passes x
+        self.scene = None                      # a cutscene (see scene.py)
         self._index: dict | None = None
 
     def add(self, tile: Tile, x: int, y: int, size=None, flip=False) -> None:
@@ -253,6 +254,7 @@ class Level:
             **({"layers": [l.to_dict() for l in self.layers]} if self.layers else {}),
             **({"skins": [k.to_dict() for k in self.skins]} if self.skins else {}),
             **({"captions": self.captions} if self.captions else {}),
+            **({"scene": self.scene.to_dict()} if self.scene else {}),
         }
 
 
@@ -356,6 +358,8 @@ class Runtime:
                     svg = self._load_svg(v)
             elif k == "kmj":
                 self._kmj(t, v)
+            elif k == "svgs":
+                self._svgs(t, v)
             elif k in FLAGS:
                 t.flags.add(k)
             elif k in ANIMS:
@@ -380,6 +384,23 @@ class Runtime:
         path = args[0] if os.path.isabs(args[0]) else os.path.join(self.basedir, args[0])
         target = args[1] if len(args) > 1 else None
         frames = kmj.render(path, target, args[2:], kw, margin=margin)
+        t.svg, t.frames = frames[0], frames
+
+    def _svgs(self, t: Tile, v: Any) -> None:
+        """``svgs("svg/dance_*.svg", fps=8)``: the SVG files that match (in name order) are the frames of the tile (any python made them)."""
+        import glob
+        args, kw = (v.args, dict(v.kwargs)) if isinstance(v, Call) else ((v,) if isinstance(v, str) else tuple(v), {})
+        if not args or not isinstance(args[0], str):
+            raise TypeError(f"svgs needs a file pattern: svgs(\"svg/dance_*.svg\", fps=8), got {v!r}")
+        t.fps = float(kw.pop("fps", 6))
+        pat = args[0] if os.path.isabs(args[0]) else os.path.join(self.basedir, args[0])
+        files = sorted(glob.glob(pat))
+        if not files:
+            raise FileNotFoundError(f"svgs({args[0]!r}): no file matches (run the script that draws them?)")
+        frames = []
+        for p in files:
+            with open(p, encoding="utf-8") as fh:
+                frames.append(fh.read())
         t.svg, t.frames = frames[0], frames
 
     def _load_svg(self, src: str) -> str:
@@ -466,7 +487,18 @@ class Runtime:
             """``title(0, "Chapter 1", "A quiet meadow")``: a chapter card, same trigger as say()."""
             self.level.captions.append({"kind": "title", "x": float(x), "text": str(text), "sub": sub, "seconds": float(seconds)})
 
+        from .scene import builtins as scene_builtins
+        import json as _json
+
+        def data(path):
+            """``data("audio.json")``: a JSON file next to the .lvl, as python lists and dicts."""
+            p = path if os.path.isabs(path) else os.path.join(self.basedir, path)
+            with open(p, encoding="utf-8") as fh:
+                return _json.load(fh)
+
         return {
+            "data": data,
+            **scene_builtins(self.level),
             "say": say, "title": title,
             "seed": seed, "background": background, "legend": legend, "meta": meta, "layer": layer, "skin": skin,
             "rand": self.rng.random, "randint": self.rng.randint, "choice": self.rng.choice,

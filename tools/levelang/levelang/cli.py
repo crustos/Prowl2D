@@ -35,6 +35,23 @@ def main(argv=None) -> int:
     g.add_argument("--view", type=_view, default=None, help="follow-camera window in tiles, e.g. 40x22")
     g.add_argument("--no-bot", action="store_true")
 
+    sn = sub.add_parser("scene", help="render the cutscene of a level (its scene() timeline) to a GIF")
+    sn.add_argument("file")
+    sn.add_argument("-o", "--out", default=None)
+    sn.add_argument("--seed", type=int, default=None)
+    sn.add_argument("--tile", type=int, default=20, help="pixels per tile at zoom 1")
+    sn.add_argument("--fps", type=int, default=None, help="default: the scene's")
+    sn.add_argument("--seconds", type=float, default=None, help="render only the first N seconds")
+    sn.add_argument("--mp4", default=None, help="write an H.264 video instead of a GIF (needs ffmpeg)")
+    sn.add_argument("--audio", default=None, help="a sound file to mix into the --mp4")
+    sn.add_argument("--sheet", default=None, help="write a PNG contact sheet of the moments given by --at (seconds, or b<beat>) instead of the GIF")
+    sn.add_argument("--at", default="", help="comma separated moments for --sheet: 12.5 or b25 (beats)")
+
+    es = sub.add_parser("export-scene", help="export the scene() timeline as Cutscene.cs, which the game plays before the level")
+    es.add_argument("file")
+    es.add_argument("-o", "--out", default=None, help="default: Cutscene.cs next to the .lvl")
+    es.add_argument("--seed", type=int, default=None)
+
     j = sub.add_parser("json", help="dump the engine-neutral level data")
     j.add_argument("file")
     j.add_argument("-o", "--out", default=None)
@@ -122,6 +139,15 @@ def main(argv=None) -> int:
             f.write(to_story_cs(level, os.path.basename(a.file)))
         print(f"wrote {out}: {len(level.captions)} lines")
         return 0
+    if a.cmd == "export-scene":
+        from .export import to_cutscene_cs
+
+        out = a.out or os.path.join(os.path.dirname(os.path.abspath(a.file)), "Cutscene.cs")
+        with open(out, "w", encoding="utf-8", newline="\n") as f:
+            f.write(to_cutscene_cs(level, os.path.basename(a.file)))
+        sc = level.scene
+        print(f"wrote {out}: {len(sc.actors)} actors, {len(sc.captions)} lines, {sc.seconds:g}s")
+        return 0
     if a.cmd == "export-project":
         from .export import to_project
 
@@ -157,6 +183,33 @@ def main(argv=None) -> int:
     if a.cmd == "json":
         text = json.dumps(level.to_dict(), ensure_ascii=False, indent=1)
         (open(a.out, "w", encoding="utf-8").write(text) if a.out else print(text))
+        return 0
+
+    if a.cmd == "scene":
+        from .render.scene import render_scene
+
+        if a.sheet:
+            from PIL import Image, ImageDraw
+
+            moments = [(float(m[1:]) * 60.0 / level.scene.bpm if m.startswith("b") else float(m), m) for m in a.at.split(",") if m]
+            pics = render_scene(level, "", tile_px=a.tile, fps=a.fps, at=[t for t, _ in moments])
+            cols = min(4, len(pics))
+            w, h = pics[0].size
+            sheet = Image.new("RGB", (cols * w, ((len(pics) + cols - 1) // cols) * h), "white")
+            d = ImageDraw.Draw(sheet)
+            for i, ((_, label), pic) in enumerate(zip(moments, pics)):
+                sheet.paste(pic, ((i % cols) * w, (i // cols) * h))
+                d.text(((i % cols) * w + 4, (i // cols) * h + 3), label, fill="red")
+            sheet.save(a.sheet)
+            print(f"wrote {a.sheet}: {len(pics)} moments")
+            return 0
+        if a.mp4:
+            info = render_scene(level, "", tile_px=a.tile, fps=a.fps, seconds=a.seconds, mp4=a.mp4, audio=a.audio)
+            print(f"wrote {a.mp4}: {info['frames']} frames, {info['size'][0]}x{info['size'][1]}px, {info['seconds']}s at {info['fps']} fps" + (", with sound" if a.audio else ""))
+            return 0
+        out = a.out or a.file.rsplit(".", 1)[0] + ".gif"
+        info = render_scene(level, out, tile_px=a.tile, fps=a.fps, seconds=a.seconds)
+        print(f"wrote {out}: {info['frames']} frames, {info['size'][0]}x{info['size'][1]}px, {info['seconds']}s at {info['fps']} fps")
         return 0
 
     from .render import render_gif
