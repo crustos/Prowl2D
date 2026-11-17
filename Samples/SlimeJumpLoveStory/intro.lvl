@@ -1,0 +1,426 @@
+## SlimeJumpLoveStory: a music video that opens SlimeJumpRPG.
+##
+## A level is the stage; scene() is the timeline.  Here the stage is four sets side by side, and the camera does not travel between them, it CUTS:
+##
+##     x   0 ..  63   the lane (dawn)             x 128 .. 159   close-up room: Slime
+##     x  64 .. 127   the club (the dance floor)  x 160 .. 191   close-up room: Gelly
+##     x 224 .. 255   the wedding                 x 192 .. 223   close-up room: Sir Croak       x 256 .. 287   close-up room: the bride
+##
+## A close-up is an actor drawn big (size=...) in its own room, so the face is crisp.  Everything lands on a 120 bpm grid: beat(16) is the drop.
+##
+##     python3 tools/levelang scene        Samples/SlimeJumpLoveStory/intro.lvl --tile 16 -o Samples/SlimeJumpLoveStory/intro.gif
+##     python3 tools/levelang export-scene Samples/SlimeJumpLoveStory/intro.lvl -o Samples/SlimeJumpLoveStory/Cutscene.cs
+
+meta(width=288, height=21)
+background("#ffc9a8", "#fff3d9")
+
+K = "kmj/"
+
+## ---------------------------------------------------------------- terrain and backdrops (plain colours)
+def 🟩 -> fill.yellowgreen, stroke.forestgreen, solid:
+,  '  ,   .
+  .  ,  '  ,
+
+def 🟫 -> fill.peru, stroke.sienna, solid:
+.  :   '  .
+ '  .  :  '
+
+def 🔲 -> svg:
+<svg viewBox="0 0 1 1"></svg>
+
+def 🟪 -> fill("#2a1048"), bg:
+
+def 🟦 -> fill("#1e90ff"), bg:
+
+def 🟧 -> fill("#ff9f1c"), bg:
+
+def 🟥 -> fill("#ff3cac"), bg:
+
+def ⬛ -> fill("#1a0a2e"), bg:
+
+def 🟨 -> fill("#ffe45e"), bg:
+
+def 🟡 -> fill("#fff3a0"), bg:
+
+def 🩷 -> fill("#ff6ec7"), bg:
+
+def 💮 -> fill("#ffc2e6"), bg:
+
+def 🟢 -> fill("#7bed9f"), bg:
+
+def ⚪ -> fill("#c6f7d8"), bg:
+
+def 🤍 -> fill("#fff0f5"), bg:
+
+def 🎀 -> fill("#ffb6c1"), bg:
+
+def 🔷 -> fill("#cfe8ff"), bg:
+
+## ---------------------------------------------------------------- the cast: one tile per pose
+## Slime
+def 🐛 -> kmj(K + "slime.kmj", "idle", fps=6, margin=0), size(1.7, 1.2):
+
+def 😬 -> kmj(K + "slime.kmj", "nervous", fps=8, margin=0), size(1.7, 1.2):
+
+def 😲 -> kmj(K + "slime.kmj", "shock", fps=8, margin=0), size(1.7, 1.2):
+
+def 😉 -> kmj(K + "slime.kmj", "wink", fps=6, margin=0), size(1.7, 1.2):
+
+def 😎 -> kmj(K + "slime.kmj", "cool", fps=6, margin=0), size(1.7, 1.2):
+
+def 🕺 -> kmj(K + "slime.kmj", "dance_a", fps=8, margin=0), size(1.7, 1.2):
+
+def 🙆 -> kmj(K + "slime.kmj", "dance_b", fps=8, margin=0), size(1.7, 1.2):
+
+def 🤟 -> kmj(K + "slime.kmj", "groove_a", fps=8, margin=0), size(1.7, 1.2):
+
+def 🤘 -> kmj(K + "slime.kmj", "groove_b", fps=8, margin=0), size(1.7, 1.2):
+
+def 😍 -> kmj(K + "slime.kmj", "love", fps=5, margin=0), size(1.7, 1.2):
+
+def 😴 -> kmj(K + "slime.kmj", "happy", fps=3, margin=0), size(1.7, 1.2):
+
+def 👀 -> kmj(K + "slime.kmj", "look", fps=3, margin=0), size(1.7, 1.2):
+
+## Gelly
+def 👧 -> kmj(K + "gelly.kmj", "idle", fps=4, margin=0), size(2.3, 2):
+
+def 😜 -> kmj(K + "gelly.kmj", "wink", fps=6, margin=0), size(2.3, 2):
+
+def 🥸 -> kmj(K + "gelly.kmj", "cool", fps=6, margin=0), size(2.3, 2):
+
+def 💅 -> kmj(K + "gelly.kmj", "dance_a", fps=8, margin=0), size(2.3, 2):
+
+def 🎧 -> kmj(K + "gelly.kmj", "dance_b", fps=8, margin=0), size(2.3, 2):
+
+def 🎸 -> kmj(K + "gelly.kmj", "groove_a", fps=8, margin=0), size(2.3, 2):
+
+def 🥁 -> kmj(K + "gelly.kmj", "groove_b", fps=8, margin=0), size(2.3, 2):
+
+def 🥰 -> kmj(K + "gelly.kmj", "love", fps=5, margin=0), size(2.3, 2):
+
+def 😮 -> kmj(K + "gelly.kmj", "shock", fps=8, margin=0), size(2.3, 2):
+
+## the bride
+def 👰 -> kmj(K + "gelly.kmj", "bride", fps=4, margin=0), size(3, 2.6):
+
+def 💐 -> kmj(K + "gelly.kmj", "bride_love", fps=5, margin=0), size(3, 2.6):
+
+## Sir Croak, and his clones
+def 🐸 -> kmj(K + "frog.kmj", "croak", fps=3, margin=0), size(2, 1.6):
+
+def 😏 -> kmj(K + "frog.kmj", "smug", fps=5, margin=0), size(2, 1.6):
+
+def 😵 -> kmj(K + "frog.kmj", "shock", fps=8, margin=0), size(2, 1.6):
+
+def 😭 -> kmj(K + "frog.kmj", "cry", fps=5, margin=0), size(2, 1.6):
+
+def 🐢 -> kmj(K + "frog.kmj", "cool", fps=6, margin=0), size(2, 1.6):
+
+def 🦎 -> kmj(K + "frog.kmj", "dance_a", fps=8, margin=0), size(2, 1.6):
+
+def 🦖 -> kmj(K + "frog.kmj", "dance_b", fps=8, margin=0), size(2, 1.6):
+
+def 🐊 -> kmj(K + "frog.kmj", "groove_a", fps=8, margin=0), size(2, 1.6):
+
+def 🦕 -> kmj(K + "frog.kmj", "groove_b", fps=8, margin=0), size(2, 1.6):
+
+## props
+def 🚘 -> kmj(K + "props.kmj", "drive", fps=6, margin=0), size(12, 4.8):
+
+def 💗 -> kmj(K + "props.kmj", "gem", fps=5, margin=0), size(1.1, 1.1):
+
+def 🔊 -> kmj(K + "props.kmj", "speaker_rest", margin=0), size(4.4, 6), bg:
+
+def 💞 -> kmj(K + "props.kmj", "gem", fps=5, margin=0), size(6.5, 6.5), bg:
+
+def 🔮 -> kmj(K + "props.kmj", "spin", fps=6, margin=0), size(3.2, 3.7), bg:
+
+def 💒 -> kmj(K + "props.kmj", "wedding", fps=4, margin=0), size(10, 10), bg:
+
+def 🌳 -> kmj(K + "props.kmj", "tree_sway", fps=2, margin=0), size(4, 4), bg:
+
+def 🍀 -> kmj(K + "props.kmj", "bush_rest", margin=0), size(2, 1.5), bg:
+
+def ⛅ -> kmj(K + "props.kmj", "cloud_rest", margin=0), size(6, 2), bg:
+
+def 🌄 -> kmj(K + "props.kmj", "hill_rest", margin=0), size(16, 6), bg:
+
+def 🌸 -> kmj(K + "props.kmj", "bloom", fps=3, margin=0), size(1, 1), bg:
+
+## ---------------------------------------------------------------- the sets
+W, H, G = 288, 21, 17
+
+def rect(tile, x0, y0, x1, y1):           ## inclusive cells
+    for cx in range(x0, x1 + 1):
+        for cy in range(y0, y1 + 1):
+            place(tile, cx, cy)
+
+## the lane: grass on dirt, dawn
+for cx in range(0, 64):
+    place(🟩, cx, G)
+    rect(🟫, cx, G + 1, cx, H - 1)
+place(🔲, 0, 0)                           ## corners: they give the stage its size
+place(🔲, W - 1, 0)
+
+## the club: a dark room, a floor that lights up in a pattern (three colours, then dim)
+rect(🟪, 64, 0, 127, G - 1)
+for cx in range(64, 128):
+    place([🟦, 🟧, 🟥][(cx // 2) % 3], cx, G)
+    rect(⬛, cx, G + 1, cx, H - 1)
+for cx in range(64, 128, 8):              ## stripes of light down the wall
+    rect(🟦, cx, 0, cx, G - 1)
+place(💞, 91.7, 6.2)                      ## a neon heart behind the dance floor
+place(🔮, 83.0, 8.0)
+place(🔮, 109.0, 8.0)
+place(🔊, 78.5, 11.0)
+place(🔊, 113.0, 11.0)
+
+## the close-up rooms: loud flat colours, stripes
+for room, (c1, c2) in enumerate([(🟨, 🟡), (🩷, 💮), (🟢, ⚪)]):
+    for cx in range(128 + room * 32, 160 + room * 32):
+        rect(c1 if (cx // 4) % 2 == 0 else c2, cx, 0, cx, H - 1)
+
+## the wedding: a pale hall with a pink aisle
+rect(🤍, 224, 0, 255, G - 1)
+for cx in range(224, 256):
+    place(🎀, cx, G)
+    rect(🎀, cx, G + 1, cx, H - 1)
+place(💒, 235, 7.4)
+for cx in range(226, 254, 4):
+    place(🌸, cx + 0.5, G - 0.9)
+
+## the bride's close-up room
+for cx in range(256, 288):
+    rect(🔷 if (cx // 4) % 2 == 0 else 🤍, cx, 0, cx, H - 1)
+
+skin(🟩, 🟫, wobble=0.12, outline="#3b2a1a", outline_width=0.06, seed=3)
+
+## dawn scenery, only on the lane (parallax layers drift: these are far from the other sets)
+with layer("sky", parallax=0.08, parallax_y=1.0):
+    for i, (cx, cy) in enumerate([(2, 8), (22, 9.5), (40, 7.5), (58, 10)]):
+        place(⛅, cx, cy, size=(6 + i % 2 * 2, 2), flip=i % 2 == 1)
+with layer("hills", parallax=0.22, parallax_y=1.0, haze=("#e8a0a0", 0.3)):
+    for i in range(4):
+        place(🌄, i * 17 - 6, 10.5, size=(20, 8), flip=i % 2 == 1)
+with layer("trees", parallax=0.5, parallax_y=1.0, haze=("#e8a0a0", 0.12)):
+    for cx in [3, 11, 19, 27, 34, 41]:
+        place(🌳, cx, 13.0 + (cx % 3) * 0.2, size=(4 + cx % 3, 4 + cx % 2))
+with layer("meadow", parallax=1.0):
+    for cx in range(2, 62, 3):
+        place(🍀, cx + 0.3, G - 1.2, size=(1.8, 1.3))
+    for cx in range(5, 60, 4):
+        place(🌸, cx + 0.5, G - 0.9, size=(0.9, 0.9))
+
+## ---------------------------------------------------------------- the cast
+SLIME = {"idle": 🐛, "nervous": 😬, "shock": 😲, "wink": 😉, "cool": 😎, "da": 🕺, "db": 🙆, "ga": 🤟, "gb": 🤘, "love": 😍, "happy": 😴, "look": 👀}
+GELLY = {"idle": 👧, "wink": 😜, "cool": 🥸, "da": 💅, "db": 🎧, "ga": 🎸, "gb": 🥁, "love": 🥰, "shock": 😮}
+BRIDE = {"idle": 👰, "love": 💐}
+CROAK = {"idle": 🐸, "smug": 😏, "shock": 😵, "cry": 😭, "cool": 🐢, "da": 🦎, "db": 🦖, "ga": 🐊, "gb": 🦕}
+
+SY, GY, FY = G - 1.2, G - 2, G - 1.6        ## the y that stands each of them on the ground
+CU = {"slime": 144, "gelly": 176, "croak": 208, "bride": 272}   ## the centre of each close-up room
+CLONES = ["c0", "c1", "c2", "c3", "c4", "c5"]
+CLUB = [84.6, 86.9, 92.0, 98.6, 105.0, 107.3]       ## where they stand in the club
+HALL = [227.0, 229.4, 231.8, 247.0, 249.4, 251.8]    ## and in the wedding hall
+
+scene("clip", seconds=48, fps=12, view=(32, 18), bpm=120)
+B = beat
+
+actor("limo", 🚘, 34, G - 4.4)
+actor("slime", SLIME, 12.3, SY)
+actor("croak", CROAK, 15.8, FY)
+actor("gelly", GELLY, 95, GY)
+actor("bride", BRIDE, 240, G - 2.6)
+hide("bride", 0)
+for name, x in zip(CLONES, CLUB):
+    actor(name, CROAK, x, FY)
+    hide(name, 0)
+actor("slime_cu", SLIME, CU["slime"] - 10.8, 2.9, size=(21.6, 15.3))
+actor("gelly_cu", GELLY, CU["gelly"] - 9.5, 2.25, size=(19, 16.5))
+actor("croak_cu", CROAK, CU["croak"] - 10, 2.5, size=(20, 16))
+actor("bride_cu", BRIDE, CU["bride"] - 10.5, 2.6, size=(21, 18.2))
+
+## ---------------------------------------------------------------- helpers
+def wide(t, x, zoom=1.6, y=14.4):
+    cut(t, x, y, zoom)
+
+def close(t, who, pose_name):               ## cut to a face, in its room, already making the face
+    cut(t, CU[who], 10.5, 1.0)
+    pose(who + "_cu", t, pose_name)
+
+def flash(t, color="white", a=0.6, secs=0.3):
+    fade(t, t + secs, a, 0, color)
+
+def beats(a, b, every=1):
+    n = a
+    while n < b:
+        yield n
+        n += every
+
+COLORS = ["white", "#ff3cac", "#ffe45e", "#3cdcff"]
+
+## ---------------------------------------------------------------- ACT 0 (beats 0-15): the lane, deadpan
+fade(0, 1.0, 1, 0)
+wide(0, 17)
+card(B(0.5), "A SLIMEJUMP FILM", "executive producer: Sir Croak", seconds=1.1)
+
+line(B(3), "So. You like her.", who="Sir Croak", seconds=1.3)
+close(B(6), "slime", "nervous")
+line(B(6), "...I like her.", who="SlimeJump", seconds=0.95)
+close(B(8), "croak", "smug")
+line(B(8), "You LIKE her.", who="Sir Croak", seconds=0.95)
+wide(B(10), 17)
+pose("slime", B(10), "nervous")
+line(B(10), "Please stop saying it like that.", who="SlimeJump", seconds=1.8)
+pose("croak", B(10), "smug")
+
+move("limo", B(11), B(15), 20.5, G - 4.4, ease="out")
+cam(B(11), 17, 14.4, 1.6, "inout")
+cam(B(15), 21, 14.4, 1.6, "inout")          ## the limo takes its time
+pose("slime", B(12), "shock")
+pose("croak", B(12), "shock")
+close(B(13), "slime", "shock")
+close(B(14), "croak", "shock")
+close(B(15), "gelly", "wink")                                ## ...and who steps out of it
+
+## ---------------------------------------------------------------- ACT 1 (16-31): the drop. The club, cuts on the beat
+flash(B(16), "white", 1.0, 0.5)
+wide(B(16), 94, 1.9)
+dance("gelly", B(16), B(40), ["da", "db"], every=1, hop=0.7)
+warp("slime", B(16), 89.5, SY)
+dance("slime", B(16), B(32), ["da", "db"], every=1, hop=0.9)
+warp("croak", B(16), 101, FY)
+dance("croak", B(16), B(32), ["db", "da"], every=1, hop=0.5)
+for n in beats(16, 32):
+    punch(B(n), 0.07, 0.3)
+    flash(B(n) + B(0.5), COLORS[int(n) % 4], 0.22, 0.25)
+
+wide(B(20), 94, 2.3)
+close(B(21), "gelly", "cool")
+close(B(22), "slime", "wink")
+wide(B(23), 91, 2.8)
+close(B(24), "croak", "smug")
+wide(B(25), 98, 2.1)
+close(B(26), "slime", "cool")
+wide(B(27), 94.5, 2.7)
+close(B(28), "gelly", "wink")
+close(B(29), "croak", "shock")
+wide(B(30), 92.5, 3.4)
+close(B(31), "slime", "wink")
+
+## ---------------------------------------------------------------- ACT 2 (32-55): the crowd. Every beat one more Sir Croak
+wide(B(32), 95.5, 1.3, 14.0)
+for i, name in enumerate(CLONES):
+    show(name, B(32 + i))
+    flash(B(32 + i), "white", 0.5, 0.3)
+    dance(name, B(32 + i), B(44), (["da", "db"] if i % 2 == 0 else ["db", "da"]), every=1, hop=0.8)
+dance("slime", B(32), B(44), ["da", "db"], every=1, hop=1.0)
+dance("croak", B(32), B(44), ["ga", "gb"], every=1, hop=0.8)
+for n in beats(32, 44):
+    punch(B(n), 0.06, 0.3)
+    flash(B(n) + B(0.5), COLORS[int(n) % 4], 0.2, 0.25)
+wide(B(34), 90.5, 2.4)
+wide(B(36), 99, 1.9)
+close(B(38), "croak", "cool")
+wide(B(39), 95.5, 1.15, 13.8)
+wide(B(41), 92, 2.8)
+close(B(42), "gelly", "cool")
+close(B(43), "slime", "cool")
+
+## 44-47: he sees her (and so does everyone, especially Sir Croak)
+close(B(44), "gelly", "love")
+close(B(45), "slime", "love")
+close(B(46), "croak", "cry")
+wide(B(47), 93.5, 2.2)
+move("slime", B(44), B(48), 92.6, SY, ease="inout")
+pose("slime", B(44), "love")
+pose("gelly", B(40), "cool")
+for i, name in enumerate(CLONES):
+    dance(name, B(44), B(56), (["ga", "gb"] if i % 2 == 0 else ["gb", "ga"]), every=0.5, hop=1.3)
+dance("croak", B(44), B(56), ["ga", "gb"], every=0.5, hop=1.2)
+pose("gelly", B(44), "love")
+for n in beats(44, 56):
+    punch(B(n), 0.07, 0.3)
+    flash(B(n) + B(0.5), COLORS[int(n) % 4], 0.22, 0.25)
+shake(B(52), B(56), 0.22)
+
+## 48-55: they are alone in the middle of the noise, and the camera pushes in on the pair
+wide(B(48), 93.5, 1.9)
+wide(B(50), 93.5, 2.4)
+close(B(51), "slime", "love")
+wide(B(52), 93.8, 3.0)
+close(B(53), "gelly", "love")
+wide(B(54), 93.8, 3.8)
+close(B(55), "slime", "love")
+
+## ---------------------------------------------------------------- ACT 3 (56-87): the wedding, which no one saw coming
+flash(B(56), "white", 1.0, 0.7)
+wide(B(56), 240, 1.7)
+hide("gelly", B(56))
+show("bride", B(56))
+pose("bride", B(56), "love")
+warp("slime", B(56), 236.4, SY)
+pose("slime", B(56), "love")
+warp("croak", B(56), 229.6, FY)
+pose("croak", B(56), "cry")
+for name, x in zip(CLONES, HALL):
+    warp(name, B(56), x, FY)
+    pose(name, B(56), "idle")
+cam(B(57), 240, 13.9, 1.7, "inout")
+cam(B(68), 240, 14.2, 2.3, "inout")
+line(B(58), "Many trials and tribulations later...", who="Narrator", seconds=2.6)
+close(B(61), "bride", "love")
+close(B(63), "slime", "love")
+wide(B(65), 240, 2.3, 14.2)
+line(B(65), "I do.", who="SlimeJump", seconds=0.7)
+line(B(66.5), "I do.", who="Gelly", seconds=0.9)
+
+move("slime", B(67), B(68), 238.7, SY, ease="inout", hop=0.8)
+for n in beats(68, 72):
+    emote("slime", B(n), 💗, seconds=1.2)
+    emote("bride", B(n) + B(0.5), 💗, seconds=1.2)
+flash(B(68), "#ff6ec7", 0.8, 0.8)
+punch(B(68), 0.12, 0.5)
+close(B(69), "croak", "cry")
+line(B(69), "I object. ...No. I do not object. It is lovely.", who="Sir Croak", seconds=2.6)
+wide(B(71), 240, 2.8, 14.4)
+
+## 72-85: the reprise. Everyone dances at the wedding
+flash(B(72), "white", 0.9, 0.5)
+cam(B(72), 240, 14.0, 1.9, "cut")
+cam(B(84), 240, 13.2, 1.15, "inout")
+dance("bride", B(72), B(86), ["idle", "love"], every=1, hop=0.9)
+dance("slime", B(72), B(86), ["ga", "gb"], every=1, hop=1.0)
+dance("croak", B(72), B(86), ["ga", "gb"], every=1, hop=0.8)
+for i, name in enumerate(CLONES):
+    dance(name, B(72), B(86), (["da", "db"] if i % 2 == 0 else ["db", "da"]), every=1, hop=0.9)
+for n in beats(72, 86):
+    punch(B(n), 0.05, 0.3)
+    emote(["slime", "bride", "croak"][int(n) % 3], B(n), 💗, seconds=1.0)
+    flash(B(n) + B(0.5), COLORS[int(n) % 4], 0.18, 0.25)
+close(B(76), "bride", "love")
+close(B(77), "croak", "cool")
+close(B(78), "slime", "cool")
+wide(B(79), 240, 1.6)
+close(B(82), "slime", "wink")
+wide(B(83), 240, 1.2)
+
+## ---------------------------------------------------------------- the twist: it was a dream
+fade(B(85), B(86), 0, 1, "white")
+wide(B(86), 20, 1.8)
+hide("bride", B(86))
+hide("limo", B(86))
+for name in CLONES:
+    hide(name, B(86))
+warp("slime", B(86), 20, SY)
+pose("slime", B(86), "happy")
+fade(B(86), B(87.5), 1, 0, "white")
+line(B(87), "...I do... I do... zzz...", who="SlimeJump", seconds=1.45)
+warp("croak", B(88), 38, FY)
+move("croak", B(88), B(91), 26, FY, ease="out")
+line(B(90), "Wake up. You are late for chapter one.", who="Sir Croak", seconds=2.0)
+pose("slime", B(91), "look")
+pose("slime", B(93), "idle")
+move("slime", B(93), B(94), 20, SY, ease="out", hop=1.5)
+fade(B(94), 48, 0, 1, "white")
