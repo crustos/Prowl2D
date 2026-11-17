@@ -173,6 +173,13 @@ say(48, "Oh! Hello, little slime.", who="Gelly")          ## a line of dialogue
 The preview GIF stops the bot at each line for its `seconds` (default 3.5; a title 4.5) and shows it over the picture. `python3 tools/levelang export-story level.lvl -o Story.cs` writes the lines as a C# class
 (`Story.Count`, `Story.X(i)`, `Story.Text(i)`, `if` chains: the C build's subset) for a game to print as the player passes them; see `Samples/SlimeJumpRPG`.
 
+## Cutscenes and music videos: scene()
+
+A level is also a stage. `scene("clip", seconds=48, bpm=120)` adds a timeline: `actor()`, `move()`, `warp()`, `show()` / `hide()`, `pose()`, `dance()`, `emote()`, `cam()` / `cut()`, `punch()`, `shake()`, `fade()`, `card()` and `line()`
+(all times in seconds, `beat(n)` is n beats of them, places in cells; an actor takes one tile per pose, so a pose is a kaomojilang animation; `size=` draws an actor big, which is how a close-up is made).
+`python3 tools/levelang scene clip.lvl -o clip.gif` renders it (a moving, zooming camera with hard cuts, no bot; `--sheet out.png --at b16,b20` writes a contact sheet of moments) and `export-scene` writes `Cutscene.cs`, the same timeline as `if`-chain
+functions of time (`ActorX(a, t)`, `Pose(a, t)`, `Visible(a, t)`, `CamX(t)`, `Fade(t)`, `Text(i)` ...) for a game to play. See `Samples/SlimeJumpLoveStory`, which has the call table.
+
 ## Blender: grease pencil, animated like the GIF
 
 ```sh
@@ -207,4 +214,4 @@ them (no respawn). The bot is the one in the GIF: a single route.
 
 ## Layout
 
-`parser.py` text → Python · `transform.py` AST pass · `runtime.py` Level IR and helpers · `bot.py` · `render/` (sprites, SVG, GIF) · `svgvec.py` our SVG reader · `export/` (Level.cs, editor project, scenery data, `blender*.py`) · `cli.py`
+`parser.py` text → Python · `transform.py` AST pass · `runtime.py` Level IR and helpers · `bot.py` · `render/` (sprites, SVG, GIF) · `svgvec.py` our SVG reader · `scene.py` cutscene timeline · `export/` (Level.cs, Story.cs, Cutscene.cs, editor project, scenery data, `blender*.py`) · `cli.py`
