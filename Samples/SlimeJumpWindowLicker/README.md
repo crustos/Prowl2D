@@ -1,5 +1,7 @@
 # SlimeJump Window Licker: a love story
 
+https://x.com/panjeadev/status/2123070175671140536
+
 A parody music-video cutscene for the levelang scene engine. Original characters, jokes and ending; it only borrows the music-video grammar (long dialogue, stretched limo, dance, morphing faces, beach party, champagne, wedding).
 
 - `video.lvl`: the whole timeline (reads `audio.json`).
