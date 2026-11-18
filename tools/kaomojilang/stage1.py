@@ -17,18 +17,43 @@ The result keeps a `line_map` (output line -> original line) for error messages.
 
 import ast
 import re
+import unicodedata
 from dataclasses import dataclass, field
 
 from .errors import Stage1Error
 
 TAB = 4
-GRID_PARAMS = ("fill", "stroke", "width", "sizes", "smooth", "shift", "rotate", "scale")     # forwarded to the shape builder
+GRID_PARAMS = ("fill", "stroke", "width", "sizes", "smooth", "shift", "rotate", "scale", "rough")     # forwarded to the shape builder
 
-_DEF = re.compile(r"^def\s+(?P<name>[^\s(]+)\s*\((?P<params>.*)\)\s*:\s*(?:#.*)?$")
+_DEF = re.compile(r"^def\s+(?P<name>[^\s(:]+)\s*(?:\((?P<params>.*)\))?\s*:\s*(?:#.*)?$")      # `def face:` is `def face():`
 _PY_START = re.compile(
     r"^(?:#|@|(?:def|class|for|if|elif|else|while|return|import|from|with|try|except|finally|pass|del)\b"
     r"|[A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)*\s*(?:=(?!=)|\+=|-=|\*=|/=))")
-_GRID_LINE = re.compile(r"^[\s\d~]*$")
+ART_CHARS = frozenset("\\/|()-_.,'`^<>")          # ASCII art: strokes of ink (see runtime.ink_chains)
+
+
+def is_symbol(c):
+    """A character a grid can use as a symbol: not ASCII, not a letter Python could use in a name."""
+    return ord(c) > 127 and not c.isspace() and not ("_" + c).isidentifier() and unicodedata.category(c) not in ("Mn", "Me", "Cf")
+
+
+def _width(c):
+    if unicodedata.category(c) in ("Mn", "Me", "Cf"):
+        return 0
+    return 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
+
+
+def _columns(code):
+    """Visual column of every character of a line (wide characters take two columns)."""
+    cols, x = [], 0
+    for c in code:
+        cols.append(x)
+        x += _width(c)
+    return cols
+
+
+def _grid_char(c):
+    return c.isspace() or c.isdigit() and c.isascii() or c == "~" or c in ART_CHARS or is_symbol(c) or unicodedata.category(c) in ("Mn", "Me", "Cf")
 
 
 # ====================================================================================================
@@ -146,13 +171,13 @@ def _strip_comment(line):
 def _is_grid(body):
     code = [_strip_comment(l) for l in body]
     code = [c for c in code if c.strip()]
-    return bool(code) and all(_GRID_LINE.match(c) for c in code)
+    return bool(code) and all(_grid_char(ch) for c in code for ch in c) and any(ch.isdigit() or is_symbol(ch) or ch in ART_CHARS for c in code for ch in c)
 
 
 def _grid_points(body, first_line, filename):
     """Numbers of a grid block with their position: (number, x, row, open). x is the center of the number;
     a trailing `~` (as in `5~`) sets open=True: the run ends here and is not closed."""
-    points, row0, seen = [], None, {}
+    points, cells, row0, seen = [], [], None, {}
     for k, raw in enumerate(body):
         code = _strip_comment(raw).expandtabs(TAB)
         if not code.strip():
@@ -161,14 +186,24 @@ def _grid_points(body, first_line, filename):
             row0 = k
         if "~" in re.sub(r"\d+~", "", code):
             raise Stage1Error("'~' must come right after a number (as in 5~)", first_line + k, raw, filename)
+        cols = _columns(code)
+        numbers = set()
         for m in re.finditer(r"(\d+)(~?)", code):
             number = int(m.group(1))
+            numbers.update(range(m.start(), m.end()))
             if number in seen:
                 raise Stage1Error(f"number {number} is used twice in the same drawing "
                                   f"(first at line {seen[number]})", first_line + k, raw, filename)
             seen[number] = first_line + k
-            points.append((number, m.start() + (len(m.group(1)) - 1) / 2, k - row0, bool(m.group(2))))
-    return points
+            points.append((number, cols[m.start()] + (len(m.group(1)) - 1) / 2, k - row0, bool(m.group(2))))
+        for i, c in enumerate(code):
+            if i in numbers:
+                continue
+            if c in ART_CHARS:
+                cells.append(("art", c, float(cols[i]), k - row0))
+            elif is_symbol(c):
+                cells.append(("sym", c, cols[i] + (_width(c) - 1) / 2, k - row0))
+    return points, cells
 
 
 def translate(source, filename="<kaomoji>"):
@@ -254,7 +289,7 @@ def _translate_def(lines, i, emit, result, filename):
     m = _DEF.match(header.rstrip())
     if not m:
         raise Stage1Error("malformed def, expected: def name(params):", lineno, header, filename)
-    name_raw, params_raw = m.group("name"), m.group("params")
+    name_raw, params_raw = m.group("name"), m.group("params") or ""
     name, _ = mangle_symbols(name_raw)
     params, _ = mangle_symbols(params_raw)
     if not name.isidentifier():
@@ -289,7 +324,7 @@ def _translate_def(lines, i, emit, result, filename):
     if args.vararg or args.kwarg:
         raise Stage1Error("drawings do not accept *args / **kwargs", lineno, header, filename)
 
-    points = _grid_points(body, i + 2, filename)
+    points, cells = _grid_points(body, i + 2, filename)
     # every drawing accepts all the standard parameters: add the ones the header does not declare
     missing = [k for k in GRID_PARAMS if k not in arg_names]
     signature = params
@@ -301,5 +336,5 @@ def _translate_def(lines, i, emit, result, filename):
     display = demangle(name)
     result.shapes[name] = display
     emit(f"def {name}({signature}):", lineno)
-    emit(f"    return __shape__({points!r}, {display!r}, {{{forwarded}}}, __defaults__({name}))", i + 2)
+    emit(f"    return __shape__({points!r}, {display!r}, {{{forwarded}}}, __defaults__({name}), {cells!r})", i + 2)
     return end

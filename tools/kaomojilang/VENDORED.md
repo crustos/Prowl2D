@@ -11,3 +11,7 @@ Blender is not needed to draw or animate SVG. `drawing/grease.py` (and `Shape.to
 
 Run the tests (from `tools/`): `python3 -m pytest kaomojilang/tests` (the Grease Pencil tests are skipped without `bpy`).
 Command line: `python3 -m kaomojilang examples/face_anim.kmj --svg out/` (from `tools/kaomojilang`'s parent, `tools/`: `python3 -m kaomojilang kaomojilang/examples/face_anim.kmj --svg out/`).
+
+## Local additions (not in geonodes)
+
+- `artlib.py`, `brush.py`, `ink.py`, `tests/test_artlib.py`, `examples/face_artlib.kmj` and the repository's `artlib/` folder: symbols and ASCII art in grids (see `SPEC.md`, `artlib/README.md`). `stage1.py`, `stage2.py` and `runtime.py` changed to carry them; re-vendoring from geonodes must keep these.

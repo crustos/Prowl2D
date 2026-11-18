@@ -174,20 +174,21 @@ class Program:
         return written
 
 
-def make_namespace(kaomoji_list, res):
+def make_namespace(kaomoji_list, res, filename="<kaomoji>", artlib_dirs=()):
     ns = {"__builtins__": dict(SAFE_BUILTINS)}
     ns.update(runtime.COLORS)
     ns.update(runtime.SIZES)
     ns.update(MATH)
     ns["random"] = _random.random
-    ns["__shape__"] = runtime.build_shape
+    env = runtime.Env(ns, filename, artlib_dirs)
+    ns["__shape__"] = lambda grid, name, params, defaults, cells=(): runtime.build_shape(grid, name, params, defaults, cells, env)
     ns["__defaults__"] = runtime.defaults_of
     ns["__kaomoji__"] = lambda text, label="": kaomoji_list.append(
         Kaomoji(text, label, next((l for t, lb, l in res.kaomoji if t == text and lb == label), None)))
     return ns
 
 
-def run(source, filename="<kaomoji>"):
+def run(source, filename="<kaomoji>", artlib=()):
     """Translate (stage 1), parse + validate (stage 2), execute. Returns a Program."""
     res = translate(source, filename)
     tree = parse_python(res, filename)
@@ -195,7 +196,7 @@ def run(source, filename="<kaomoji>"):
     code_name = f"<kaomoji:{filename}>"
     code = compile(tree, code_name, "exec")
     kaomoji = []
-    ns = make_namespace(kaomoji, res)
+    ns = make_namespace(kaomoji, res, filename, artlib)
     try:
         exec(code, ns)
     except Exception as e:
@@ -209,6 +210,6 @@ def run(source, filename="<kaomoji>"):
     return Program(res, ns, kaomoji, filename)
 
 
-def run_file(path):
+def run_file(path, artlib=()):
     with open(path, encoding="utf-8") as f:
-        return run(f.read(), path)
+        return run(f.read(), path, artlib)

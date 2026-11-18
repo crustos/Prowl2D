@@ -98,6 +98,24 @@ polygons and lines stay polylines.
 6. Line 39 of the original example had an unclosed `(` (`▢(smooth=random(),`); `examples/example.kmj` is the
    corrected version. The unclosed bracket is reported as an error on line 39.
 
+## Symbols and ASCII art in grids (artlib)
+
+A grid body may hold, next to numbers, **symbols** (any non-ASCII character that is not a letter, e.g. the Byzantine Musical
+block) and **ASCII art** (`\ / | ( ) - _ ^ < > . , ' backtick`). `def name:` is `def name():`. Body lines must be indented.
+
+* A symbol is a stamp centered on its character, drawn by the file named after it in `artlib/` (`.kmj`, `.svg`, `.py`; the
+  `.py` gets the `.svg` of the same name and runs `generate(...)`), or by a `def <symbol>` in the same file. Parameters are
+  per symbol (`sizes={'𝀓': 6}`, `rotate=`, `shift=`, `scale=`, `fill={'𝀓': shape}`). See `artlib/README.md`.
+* `generate` can return `Stroke`s in figure coordinates (`brush.py`): connecting curves, overshoot, light sketch lines
+  (`layer="under"` is drawn below every part, `"over"` above), using `ctx.neighbors()` and `ctx.nearest_ink()`.
+* ASCII art is ink: strokes that touch become one smooth open (or closed) curve, parameters under the key `'ink'`. Free ends up to
+  1.6 columns apart are joined too (a cell of air), and marks side by side (`'.`) share the way between their neighbours.
+* `rough` (a standard parameter: 0 = off, 1 = a normal sketch, 2 = messy, or `{'amount','color','seed','width'}`) adds the loose
+  pencil underdrawing on the `under` layer, planned from the whole drawing (`underdraw.py`): gesture loops, centre and level
+  lines, blocking loops for features, then each contour found in stages. Strokes are `brush.hand` lines (slow wander, overshoot,
+  taper). Tapered strokes are drawn as filled ribbons.
+* In Grease Pencil the layers are `under`, `p<id>` (ink `p1000...`, symbols `p2000...`) and `over`.
+
 ## Not done yet (proposals)
 
 * **Kaomoji to shapes.** The 105 kaomoji lines are parsed (`prog.kaomoji`, text + label) but not drawn. A natural
