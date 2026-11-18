@@ -1,0 +1,24 @@
+'''
+A happy kid.
+
+Big eyes, a tuft of hair, freckles, ears, an open laughing mouth.
+
+`rough=1` is the loose pencil sketch under the dark lines (0 = off, 2 = messy);
+it is planned from the whole drawing.
+'''
+
+def face_2(rough=1):
+                      𝀮
+                ,----------.
+             ,-`            '-.
+           ,`                  '.
+          /     𝀀           𝀀    '.
+         /                         \
+        /       𝀐           𝀐       \
+      𝀬 |                           | 𝀭
+        \                           /
+         \ 𝀦    𝀧     𝀕     𝀧    𝀸 /
+          `,                      /
+            `,        𝀙         .'
+              `_,            ._'
+                 `__________'

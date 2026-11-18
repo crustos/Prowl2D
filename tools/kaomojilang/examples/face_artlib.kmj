@@ -1,0 +1,23 @@
+'''
+A face drawn with symbols from artlib/ and ASCII art.
+
+The Byzantine musical symbols are features (their drawings live in the repository's artlib/ folder, one file per symbol:
+.kmj, .svg or .py), the ASCII art is the outline (strokes that touch become one smooth line).
+
+`rough=1` is the loose pencil sketch under the dark lines (0 = off, 2 = messy);
+it is planned from the whole drawing.
+'''
+
+def face_example(rough=1):
+           𝀎
+              ,----------.
+          ,--`            '--.
+        ,`                    '.
+       /                        '.
+      /       𝀇           𝀈       \
+      \                           /
+       \ 𝀦          𝀔          𝀸 /
+        \                       /
+         `,         𝀓          /
+           `__, 𝁼          .__'
+               `__________'

@@ -1,0 +1,25 @@
+'''
+A queen.
+
+A crown, sparkling eyes, locks of hair, hearts on the cheeks and a beauty mark.
+
+`rough=1` is the loose pencil sketch under the dark lines (0 = off, 2 = messy);
+it is planned from the whole drawing.
+'''
+
+def face_6(rough=1):
+                    𝀿
+
+              ,----------.
+           ,-`            '-.
+          /                  '.
+      𝀯  /     𝀁         𝀁     \  𝀯
+        /                       \
+        |      𝀍         𝀍      |
+        \                       /
+         \                     /
+          \ 𝀷       𝀔       𝀷 /
+           \                 /
+            `,      𝀓    𝀤  /
+              `_,        ._'
+                 `______'

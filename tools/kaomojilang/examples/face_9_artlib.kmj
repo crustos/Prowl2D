@@ -1,0 +1,24 @@
+'''
+An angel.
+
+A halo, closed happy eyes, blushing cheeks, a tear and sparkles.
+
+`rough=1` is the loose pencil sketch under the dark lines (0 = off, 2 = messy);
+it is planned from the whole drawing.
+'''
+
+def face_9(rough=1):
+      𝁇              𝀾              𝁇
+
+               ,----------.
+            ,-`            '-.
+           /                  '.
+       𝀯  /                     \  𝀯
+         /                       \
+         |      𝀉         𝀉      /
+         \                      /
+          \ 𝀦        𝀕      𝀫 𝀸 /
+           `,                  /
+             `,      𝀓       .'
+               `_,        ._'
+                  `______'

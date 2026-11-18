@@ -1,0 +1,21 @@
+'''
+A cat.
+
+Cat ears, slit eyes, a button nose and whiskers drawn in plain ASCII (they are ink too).
+
+`rough=1` is the loose pencil sketch under the dark lines (0 = off, 2 = messy);
+it is planned from the whole drawing.
+'''
+
+def face_5(rough=1, scale={'𝀼': 1.6, '𝀽': 1.6}):
+                     ,--------------.
+                ,-𝀼-`                '--𝀽.
+               /                          '.
+              /                             \
+             /       𝀑               𝀑       \
+             \                               /
+      ---     \              𝀕              /   ---
+       --      \             𝀓             /      --
+                `,                       .'
+                  `___,              .__'
+                       `____________'

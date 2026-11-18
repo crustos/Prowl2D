@@ -1,0 +1,24 @@
+'''
+A grumpy old man.
+
+Round glasses, angry brows, wrinkles, a long nose, a big moustache, a frown and a beard falling from the jaw.
+
+`rough=1` is the loose pencil sketch under the dark lines (0 = off, 2 = messy);
+it is planned from the whole drawing.
+'''
+
+def face_3(rough=1):
+              ,------------.
+           ,-`       𝁅      '-.
+          /                    '.
+         /      𝀂         𝀃      \
+        /                         \
+        |       𝀏    𝀲    𝀏       |
+      𝀬 |                         | 𝀭
+        |       𝁃         𝁃       |
+        \            𝀖            /
+         \           𝁀           /
+          \                     /
+           `,        𝀚         /
+             `_,            ._'
+                `____𝀹_____'

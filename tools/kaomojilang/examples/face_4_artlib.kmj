@@ -1,0 +1,24 @@
+'''
+Cool, in sunglasses.
+
+Spiky hair, shades, a smirk and a scar. The eyes are not drawn: the sunglasses cover them.
+
+`rough=1` is the loose pencil sketch under the dark lines (0 = off, 2 = messy);
+it is planned from the whole drawing.
+'''
+
+def face_4(rough=1):
+                     𝀮
+              𝀮----------.  𝀮
+           ,-`            '-.
+          /                  '.
+         /    𝀁           𝀁    \
+        /                       \
+        |           𝀳           |
+      𝀬 \                       / 𝀭
+         \                     /
+          \         𝀕         /
+           \𝀩                /
+            \         𝀜     /
+             `_,          .'
+                `________'

@@ -1,0 +1,23 @@
+'''
+Tired.
+
+Half-closed eyes with bags under them, worried brows, a flat mouth, stubble, a sweat drop and a bandage.
+
+`rough=1` is the loose pencil sketch under the dark lines (0 = off, 2 = messy);
+it is planned from the whole drawing.
+'''
+
+def face_7(rough=1):
+             ,----------.
+          ,-`            '-.
+         /                  '.
+        /     𝀄         𝀅     \    𝀨
+       /                       \
+      /       𝀊         𝀊       \
+      |                         |
+      \       𝁃         𝁃       /
+       \           𝀔           /
+        \𝀪                    /
+         `,        𝀞         /
+           `_,     𝁄      ._'
+              `__________'
