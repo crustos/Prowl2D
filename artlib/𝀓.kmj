@@ -1,0 +1,4 @@
+## mouth: a smile (an open curve: the trailing ~ ends it without closing it)
+def 𝀓(stroke=black, width=0.25, smooth=0.9):
+    0        2~
+       1

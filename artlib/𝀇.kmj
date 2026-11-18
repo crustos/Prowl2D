@@ -1,0 +1,5 @@
+## left eye: a white outline (0..3) and a pupil (10)
+def 𝀇(fill={0:white, 10:black}, sizes={10:1.6}, smooth=0.9):
+    0     1
+        10
+    3     2
