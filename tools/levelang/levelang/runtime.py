@@ -112,7 +112,7 @@ class Tile:
         if self.size != (1, 1):
             d["size"] = list(self.size)
         if self.frames and len(self.frames) > 1:
-            d["frames"], d["fps"] = self.frames, self.fps
+            d["frames"], d["fps"] = list(self.frames), self.fps
         return d
 
     def __repr__(self) -> str:
@@ -374,7 +374,8 @@ class Runtime:
         return t
 
     def _kmj(self, t: Tile, v: Any) -> None:
-        """``kmj("file.kmj", "shape-or-list", fps=6, **args)``: SVG (or frames) drawn by kaomojilang."""
+        """``kmj("file.kmj", "shape-or-list", fps=6, **args)``: SVG (or frames) drawn by kaomojilang. With ``seconds=N`` the drawing
+        is animated: frame k is the shape drawn at ``t = k / fps * speed`` (``bbox=(x0, y0, x1, y1)`` fixes the canvas)."""
         from . import kmj
         args, kw = (v.args, dict(v.kwargs)) if isinstance(v, Call) else ((v,) if isinstance(v, str) else tuple(v), {})
         if not args or not isinstance(args[0], str):
@@ -383,7 +384,11 @@ class Runtime:
         margin = float(kw.pop("margin", 1))
         path = args[0] if os.path.isabs(args[0]) else os.path.join(self.basedir, args[0])
         target = args[1] if len(args) > 1 else None
-        frames = kmj.render(path, target, args[2:], kw, margin=margin)
+        if "seconds" in kw:                # an animated drawing (CSS @keyframes, layer animation): frame k is the drawing at t = k / fps
+            seconds, bbox, speed = float(kw.pop("seconds")), kw.pop("bbox", None), float(kw.pop("speed", 1))
+            frames = kmj.LazyFrames(path, target, args[2:], kw, t.fps, seconds, margin=margin, bbox=bbox, speed=speed)
+        else:
+            frames = kmj.render(path, target, args[2:], kw, margin=margin)
         t.svg, t.frames = frames[0], frames
 
     def _svgs(self, t: Tile, v: Any) -> None:

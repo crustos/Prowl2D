@@ -52,6 +52,15 @@ def main(argv=None) -> int:
     es.add_argument("-o", "--out", default=None, help="default: Cutscene.cs next to the .lvl")
     es.add_argument("--seed", type=int, default=None)
 
+    h = sub.add_parser("export-html", help="export the scene() of one or more .lvl files as ONE self-contained .html (camera, dialog bubbles, scene switches)")
+    h.add_argument("files", nargs="+", help="the .lvl files: the scenes of the page, in play order")
+    h.add_argument("-o", "--out", default=None, help="default: show.html next to the first .lvl")
+    h.add_argument("--title", default=None, help="the page title (default: the first scene's name)")
+    h.add_argument("--audio", action="append", default=[], metavar="[SCENE=]FILE", help="embed a sound track (base64) played with that scene (default: the first); repeatable")
+    h.add_argument("--loop", action="store_true", help="after the last scene go back to the first")
+    h.add_argument("--max-frames", type=int, default=240, help="most frames kept of an animated tile (default 240)")
+    h.add_argument("--seed", type=int, default=None)
+
     j = sub.add_parser("json", help="dump the engine-neutral level data")
     j.add_argument("file")
     j.add_argument("-o", "--out", default=None)
@@ -117,6 +126,24 @@ def main(argv=None) -> int:
         with open(out, "w", encoding="utf-8", newline="\n") as f:
             f.write(text)
         print(f"wrote {out}")
+        return 0
+
+    if a.cmd == "export-html":
+        from .export import to_html
+
+        levels = [load_file(f, a.seed)[0] for f in a.files]
+        names = [lv.scene.name if lv.scene else None for lv in levels]
+        audio = {}
+        for spec in a.audio:
+            name, sep, path = spec.partition("=")
+            if not sep or os.path.exists(spec):
+                name, path = names[0], spec
+            audio[name] = path
+        text = to_html(levels, title=a.title or (names[0] or "levelang"), audio=audio, loop=a.loop, max_frames=a.max_frames, warn=lambda m: print(m, file=sys.stderr))
+        out = a.out or os.path.join(os.path.dirname(os.path.abspath(a.files[0])), "show.html")
+        with open(out, "w", encoding="utf-8", newline="\n") as f:
+            f.write(text)
+        print(f"wrote {out}: {len(levels)} scene(s), {len(text) // 1024} KB")
         return 0
 
     level, _ = load_file(a.file, a.seed)

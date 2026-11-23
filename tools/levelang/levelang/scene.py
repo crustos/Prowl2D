@@ -153,6 +153,9 @@ class Scene:
     fades: list = field(default_factory=list)      # (t0, t1, a0, a1, colour)
     captions: list = field(default_factory=list)   # {"kind", "t", "text", ...}
     fxs: list = field(default_factory=list)        # (t0, t1, name, amount): a post effect on the picture (see render/fx.py)
+    rain: float = 0.0                              # rain over the picture in an HTML show (0 = none); layers named "rain..." are then not exported
+    chaos: dict | None = None                      # the random director of an HTML show (see chaos() below)
+    next: str | None = None                        # the scene an HTML show plays after this one (default: the next .lvl given)
 
     def fx_at(self, t: float) -> list:
         return [(n, a) for t0, t1, n, a in self.fxs if t0 <= t < t1]
@@ -227,7 +230,7 @@ class Scene:
                            "moves": [[m.t0, m.t1, m.x0, m.y0, m.x1, m.y1, m.ease, m.hop] for m in a.moves],
                            "pose_cues": [list(c) for c in a.pose_cues],
                            "emotes": [[t, tile.name, s] for t, tile, s in a.emotes]} for n, a in self.actors.items()},
-            "fx": [list(x) for x in self.fxs], "cams": [list(c) for c in self.cams], "fades": [list(f) for f in self.fades], "captions": self.captions,
+            **({"next": self.next} if self.next else {}), "fx": [list(x) for x in self.fxs], "cams": [list(c) for c in self.cams], "fades": [list(f) for f in self.fades], "captions": self.captions,
         }
 
 
@@ -249,8 +252,8 @@ def builtins(level) -> dict:
         if e not in EASES:
             raise ValueError(f"ease must be one of {', '.join(EASES)}, not {e!r}")
 
-    def scene(name="scene", seconds=10, fps=12, view=(40, 22), bpm=120):
-        level.scene = Scene(str(name), float(seconds), int(fps), tuple(view), float(bpm))
+    def scene(name="scene", seconds=10, fps=12, view=(40, 22), bpm=120, next=None):
+        level.scene = Scene(str(name), float(seconds), int(fps), tuple(view), float(bpm), next=str(next) if next else None)
         return level.scene
 
     def beat(n=1):
@@ -354,6 +357,19 @@ def builtins(level) -> dict:
             raise ValueError(f"fx({name!r}): the effects are {', '.join(NAMES)}")
         need().fxs.append((float(t0), float(t1), name, float(amount)))
 
+    def rain(amount=1.0):
+        """Rain in the HTML export, drawn by the page (cheap: scrolling streak tiles). The preview GIF does not show it: for the GIF, place rain pictures on a layer named "rain..."
+        (a parallax=0, over=True layer), and the HTML export leaves those layers out when ``rain()`` is set."""
+        need().rain = float(amount)
+
+    def chaos(shots=None, floor=None, singer=None, pit=None, crowd=(), band=None, lights=None, rate=1.0, grain=0.4):
+        """Set up the random director of the HTML export (open it with ``#chaos=SEED``: fast random cuts and tilts, flashes, strobes, colour washes, beams, fights in the
+        pit, guitars and keyboards smashed). ``shots``: [(x, y, zoom)] wide views to cut to; ``singer=(x, y)``; ``band={"guitar": tile, "bass": tile, "keys": tile, "drums": tile}``
+        (the animated tiles placed for them: those get smashed); ``pit=(x0, x1, y)``: where the crowd stands (feet at y); ``crowd=[tiles]``: the people thrown around;
+        ``lights=[(x, y)]``: where the beams start; ``floor``: the stage's floor y; ``rate`` how dense the chaos is; ``grain`` the film grain over it."""
+        need().chaos = {"shots": [tuple(s) for s in (shots or [])], "floor": floor, "singer": singer, "pit": pit, "crowd": list(crowd), "band": dict(band or {}),
+                        "lights": [tuple(p) for p in (lights or [])], "rate": float(rate), "grain": float(grain)}
+
     def line(t, text, who=None, seconds=3.0):
         need().captions.append({"kind": "say", "t": float(t), "text": str(text), "who": who, "seconds": float(seconds)})
 
@@ -361,4 +377,4 @@ def builtins(level) -> dict:
         need().captions.append({"kind": "title", "t": float(t), "text": str(text), "sub": sub, "seconds": float(seconds)})
 
     return {"scene": scene, "beat": beat, "show": show, "hide": hide, "face": face, "warp": warp, "dance": dance, "punch": punch, "shake": shake,
-            "actor": actor, "move": move, "pose": pose, "emote": emote, "cam": cam, "cut": cut, "fade": fade, "fx": fx, "line": line, "card": card}
+            "actor": actor, "chaos": chaos, "rain": rain, "move": move, "pose": pose, "emote": emote, "cam": cam, "cut": cut, "fade": fade, "fx": fx, "line": line, "card": card}

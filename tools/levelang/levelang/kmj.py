@@ -36,3 +36,41 @@ def render(path: str, target: str | None = None, args: tuple = (), kwargs: dict 
         raise ValueError(f"{path}: {target!r} is not a shape, a list of shapes, or a shape def")
     bbox = rt.union_bbox(shapes)
     return [s.to_svg(cell=cell, margin=margin, bbox=bbox) for s in shapes]
+
+
+class LazyFrames:
+    """The frames of an animated kaomojilang drawing, drawn when asked for: frame k is the drawing at ``t = k / fps`` seconds
+    (its ``@keyframes`` / layer ``animation`` run on the time of the scene). All frames share one canvas, the union of the drawing
+    sampled along the whole time (or the ``bbox`` given)."""
+
+    def __init__(self, path, target, args, kwargs, fps, seconds, cell=10, margin=1, bbox=None, speed=1.0):
+        k = kaomojilang()
+        self.rt = importlib.import_module("kaomojilang.runtime")
+        self.prog = k.run_file(path)
+        if target is None or not (args or kwargs or target in self.prog.shape_names):
+            raise ValueError(f"{path}: an animated kmj tile needs a shape def: kmj({path!r}, 'name', seconds=..)")
+        self.target, self.args, self.kwargs = target, tuple(args), dict(kwargs)
+        self.fps, self.n, self.cell, self.margin = float(fps), max(1, int(round(seconds * fps))), cell, margin
+        self.speed = float(speed)
+        self._cache = {}
+        step = max(1, self.n // 120)
+        self.bbox = tuple(bbox) if bbox else self.rt.union_bbox([self.shape(i) for i in sorted({*range(0, self.n, step), self.n - 1})])
+
+    def shape(self, i):
+        return self.prog.call(self.target, *self.args, t=i / self.fps * self.speed, **self.kwargs)
+
+    def __len__(self):
+        return self.n
+
+    def __getitem__(self, i):
+        if isinstance(i, slice):
+            return [self[j] for j in range(*i.indices(self.n))]
+        i = range(self.n)[i]
+        if i not in self._cache:
+            if len(self._cache) > 8:
+                self._cache.pop(next(iter(self._cache)))
+            self._cache[i] = self.shape(i).to_svg(cell=self.cell, margin=self.margin, bbox=self.bbox)
+        return self._cache[i]
+
+    def __iter__(self):
+        return (self[i] for i in range(self.n))
