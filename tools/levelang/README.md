@@ -180,6 +180,38 @@ A level is also a stage. `scene("clip", seconds=48, bpm=120)` adds a timeline: `
 `python3 tools/levelang scene clip.lvl -o clip.gif` renders it (a moving, zooming camera with hard cuts, no bot; `--sheet out.png --at b16,b20` writes a contact sheet of moments) and `export-scene` writes `Cutscene.cs`, the same timeline as `if`-chain
 functions of time (`ActorX(a, t)`, `Pose(a, t)`, `Visible(a, t)`, `CamX(t)`, `Fade(t)`, `Text(i)` ...) for a game to play. See `Samples/SlimeJumpLoveStory`, which has the call table.
 
+## One .html file: export-html
+
+```sh
+python3 tools/levelang export-html intro.lvl outro.lvl -o show.html [--audio [SCENE=]song.mp3] [--loop] [--title T]
+```
+
+The `scene()` of each .lvl becomes a scene of ONE self-contained page (tiles as inline SVG, kmj animations as swapped frames, layers/parallax and the smooth terrain skin included; the optional mp3 is embedded as base64).
+JavaScript drives the camera (keys, eases, `punch`, `shake`, zoom, clamped like the GIF; parallax layers follow their share), the actors (moves, hops, poses, mirroring, `emote`), the dialog and the scene switches:
+
+- `line(t, "text", who="Gelly")` is a speech bubble typed out above the actor called `gelly` (case-insensitive; a first or last word of `who` also matches, so "Sir Croak" finds `croak`); with nobody to speak it is a caption bar. `card()` is a title card.
+- Scenes play in the order given; `scene("a", ..., next="b")` picks another one, and the last one stops (or `--loop`). A scene ends through a fade to black. Playback is autoplay: space plays/pauses, `1`..`9` jump to a scene, arrows go to the previous/next, `f` fullscreen, `m` sound, and the bar at the bottom has the same buttons.
+- With `--audio` the song is the clock of its scene (browsers block autoplay with sound, so a play button covers the page until the first click).
+- `#scene=NAME&t=12` in the URL starts there, `#paused` waits; `window.show.seek(name, t)` / `.render(t)` are for testing.
+- Not exported: the bot, and the pixel effects `posterize`, `kaleido`, `pixel` (warned about); `solarize` and `vhs` are approximations.
+
+### The chaos director: random takes to record
+
+`chaos(...)` in a `scene()` sets up a random director in the exported page (see its docstring in `scene.py`: wide `shots`, the `singer`, the `band` tiles that get smashed, the crowd `pit`, the `crowd` tiles, `lights`). It does nothing until the page is opened with a seed:
+
+| URL | |
+|---|---|
+| `show.html#chaos=7` | take number 7 of the scene: fast random cuts and drifts, tilts and flips, punches and shakes, glitch / rgb / flicker / invert / vhs / blur / stutter bursts, white, black, coloured and lightning flashes, sweeping coloured beams, colour washes, strobes; fights in the pit (a brawl cloud, the loser flung out, mud), jumpers, crowd surfers; guitars, basses and keyboards smashed over the floor (pieces, keys, sparks), drum kits hit (cymbals and sticks fly) |
+| `&len=60` | seconds per take (default 60) |
+| (no seed) | a page with a director plays take after take by itself, from seed 1; `r` skips to the next seed; `#nochaos` plays the plain scene |
+| `&noloop` | stop after one take |
+| `&clean` | no controls, no cursor, no seed label (for recording) |
+| `&rate=1.5` | denser chaos |
+| `#grid=3x2&chaos=100` | six takes at once, seeds 100 to 105, tiles of this page: record the whole screen and cut the tiles out later |
+| `&calm` `&lock=x,y,zoom` | debugging: only the props / a fixed camera |
+
+The same seed is always the same take (the lights, cuts and events all come from it); the seed and time show in the corner (not with `&clean`), so a good moment can be found again.
+
 ## Blender: grease pencil, animated like the GIF
 
 ```sh
