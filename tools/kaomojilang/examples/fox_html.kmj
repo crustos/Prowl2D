@@ -1,0 +1,28 @@
+# A cartoon fox face from symbols of artlib/, placed with HTML + CSS (see SPEC.md, "HTML templates" and "Animation").
+# Every element is absolutely positioned (left/top in px, 1px = 0.1 column). transform:scaleX(-1) mirrors a symbol about its centre,
+# so the right half reuses the left half's symbols. layer="..." groups elements into layers: fox(layers={'ears': {'shift': (0, -2)}}).
+# Animated: fox(t=seconds) runs the @keyframes of the <style> block (a blink, an ear twitch, a breathing shade); without t it is
+# the still picture. An animation replaces the whole `transform`, so a mirrored element has its own keyframes with scaleX(-1) in them.
+
+def fox(x=190, y=170, period=4):
+    <style>
+      @keyframes blink { 0%, 90%, 100% { transform: scaleY(1) } 94% { transform: scaleY(0.08) } }
+      @keyframes blink_flip { 0%, 90%, 100% { transform: scaleX(-1) scaleY(1) } 94% { transform: scaleX(-1) scaleY(0.08) } }
+      @keyframes twitch { 0%, 78%, 100% { transform: rotate(-14deg) } 84% { transform: rotate(-30deg) } 90% { transform: rotate(-10deg) } }
+      @keyframes breathe { 0%, 100% { opacity: 0.35; filter: blur(20px) } 50% { opacity: 0.6; filter: blur(30px) } }
+    </style>
+    <div layer="shade" style="position:absolute; left:{x-120}px; top:{y-70}px; font-size:150px; opacity:0.5; filter:blur(24px); animation: breathe {period}s ease-in-out infinite">𝀏</div>
+    <div layer="ears" style="position:absolute; left:{x+(-135)}px; top:{y+(-135)}px; font-size:60px; transform:rotate(-14deg); animation: twitch {period*2}s ease-in-out infinite">𝀼</div>
+    <div layer="ears" style="position:absolute; left:{x+(75)}px; top:{y+(-135)}px; font-size:60px; transform:scaleX(-1) rotate(-14deg)">𝀼</div>
+    <div layer="face" style="position:absolute; left:{x+(-105)}px; top:{y+(-30)}px; font-size:34px; animation: blink {period}s infinite">𝀇</div>
+    <div layer="face" style="position:absolute; left:{x+(20)}px; top:{y+(-30)}px; font-size:34px; transform:scaleX(-1); animation: blink_flip {period}s infinite">𝀇</div>
+    <div layer="face" style="position:absolute; left:{x+(-108)}px; top:{y+(-70)}px; font-size:34px; transform:rotate(10deg) scaleX(-1)">𝀂</div>
+    <div layer="face" style="position:absolute; left:{x+(25)}px; top:{y+(-70)}px; font-size:34px; transform:rotate(-10deg)">𝀂</div>
+    <div layer="face" style="position:absolute; left:{x+(-12)}px; top:{y+(34)}px; font-size:22px">𝀖</div>
+    <div layer="face" style="position:absolute; left:{x+(-50)}px; top:{y+(66)}px; font-size:60px">𝁃</div>
+    <div layer="fur" style="position:absolute; left:{x+(-175)}px; top:{y+(30)}px; font-size:40px; transform:rotate(78deg)">𝀯</div>
+    <div layer="fur" style="position:absolute; left:{x+(-175)}px; top:{y+(55)}px; font-size:40px; transform:rotate(70deg)">𝀯</div>
+    <div layer="fur" style="position:absolute; left:{x+(115)}px; top:{y+(30)}px; font-size:40px; transform:rotate(-78deg)">𝀯</div>
+    <div layer="fur" style="position:absolute; left:{x+(115)}px; top:{y+(55)}px; font-size:40px; transform:rotate(-70deg)">𝀯</div>
+    <div layer="fur" style="position:absolute; left:{x+(-100)}px; top:{y+(60)}px; font-size:30px">𝀦</div>
+    <div layer="fur" style="position:absolute; left:{x+(70)}px; top:{y+(60)}px; font-size:30px; transform:scaleX(-1)">𝀦</div>
