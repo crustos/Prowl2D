@@ -2,6 +2,7 @@
 from .prowl_project import ProjectExportError, to_project
 from .cutscene import to_cutscene_cs
 from .story import to_story_cs
+from .webpage import to_html
 from .slimejump import ExportError, level_cs_to_lvl, parse_level_cs, to_level_cs
 
-__all__ = ["to_level_cs", "parse_level_cs", "level_cs_to_lvl", "ExportError", "to_project", "ProjectExportError", "to_story_cs", "to_cutscene_cs"]
+__all__ = ["to_level_cs", "parse_level_cs", "level_cs_to_lvl", "ExportError", "to_project", "ProjectExportError", "to_story_cs", "to_cutscene_cs", "to_html"]
