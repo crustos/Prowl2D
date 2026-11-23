@@ -37,7 +37,7 @@ def test_triple_quoted_text_is_untouched():
 def test_grid_block_becomes_a_shape_call():
     r = translate("def sq(fill=red):\n    1    2\n\n    4    3\n")
     assert r.shapes == {"sq": "sq"}
-    assert "def sq(fill=red, *, stroke=None, width=None, sizes=None, smooth=None, shift=None, rotate=None, scale=None, rough=None):" in r.source
+    assert "def sq(fill=red, *, stroke=None, width=None, sizes=None, smooth=None, shift=None, rotate=None, scale=None, rough=None, layers=None, t=None):" in r.source
     assert "__shape__([(1, 4.0, 0, False), (2, 9.0, 0, False), (4, 4.0, 2, False), (3, 9.0, 2, False)], 'sq', {'fill': fill, " in r.source
 
 
