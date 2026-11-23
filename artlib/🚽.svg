@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 200" data-size="8,10">
+  <!-- the big toilet, seen from the front, seat up. The drain stub at the bottom (x 68..92) sets onto the main pipe. -->
+  <!-- tank -->
+  <rect x="38" y="6" width="84" height="62" rx="7" fill="#efeadf" stroke="#2a1a3a" stroke-width="3.5" stroke-linejoin="round"/>
+  <rect x="32" y="1" width="96" height="14" rx="6" fill="#e3ddd0" stroke="#2a1a3a" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M46 24 L46 58" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <!-- flush lever and chain -->
+  <rect x="116" y="22" width="14" height="6" rx="3" fill="#b9b3a4" stroke="#2a1a3a" stroke-width="2.5"/>
+  <path d="M129 25 C140 30 142 44 136 58 C133 66 130 74 132 82" fill="none" stroke="#2a1a3a" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="3 2.4"/>
+  <circle cx="132" cy="85" r="3.4" fill="#b9b3a4" stroke="#2a1a3a" stroke-width="2"/>
+  <!-- the seat cover, standing up against the tank -->
+  <path d="M52 76 C46 52 52 26 80 24 C108 26 114 52 108 76 Z" fill="#f6f3ea" stroke="#2a1a3a" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M60 68 C57 52 60 38 72 34" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="68" cy="75" r="2.6" fill="#8d8878"/><circle cx="92" cy="75" r="2.6" fill="#8d8878"/>
+  <!-- the bowl: rim, the dark water, the body -->
+  <path d="M30 94 C28 112 44 140 66 146 L94 146 C116 140 132 112 130 94 Z" fill="#efeadf" stroke="#2a1a3a" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M40 104 C42 120 52 134 64 140" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+  <path d="M112 112 C110 124 102 134 94 140" fill="none" stroke="#cfc8b8" stroke-width="4" stroke-linecap="round"/>
+  <ellipse cx="80" cy="92" rx="52" ry="15" fill="#f6f3ea" stroke="#2a1a3a" stroke-width="3.5"/>
+  <ellipse cx="80" cy="92" rx="37" ry="9.5" fill="#4a3018" stroke="#2a1a3a" stroke-width="2.5"/>
+  <path d="M56 90 C66 87 74 90 84 88" fill="none" stroke="#8a6a3e" stroke-width="2" stroke-linecap="round"/>
+  <ellipse cx="96" cy="94" rx="6" ry="2" fill="#6b4a26"/>
+  <!-- mud brimming over the front of the rim -->
+  <path d="M52 99 C52 108 56 112 55 120 C54 124 59 124 59 119 C60 112 62 106 62 101 Z" fill="#4a3018" stroke="#2a1a3a" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M96 101 C96 110 99 114 98 124 C97 130 103 130 103 124 C104 114 106 108 106 102 Z" fill="#4a3018" stroke="#2a1a3a" stroke-width="2.2" stroke-linejoin="round"/>
+  <circle cx="57" cy="132" r="2.4" fill="#4a3018"/><circle cx="100" cy="137" r="2" fill="#4a3018"/>
+  <!-- pedestal, foot, drain stub -->
+  <path d="M66 146 L94 146 L98 172 L62 172 Z" fill="#e3ddd0" stroke="#2a1a3a" stroke-width="3.5" stroke-linejoin="round"/>
+  <rect x="44" y="170" width="72" height="13" rx="5" fill="#efeadf" stroke="#2a1a3a" stroke-width="3.5"/>
+  <rect x="68" y="183" width="24" height="17" fill="#757a7e" stroke="#2a1a3a" stroke-width="3"/>
+  <rect x="62" y="183" width="36" height="6" rx="2" fill="#8c9296" stroke="#2a1a3a" stroke-width="2.5"/>
+  <circle cx="66" cy="186" r="1.5" fill="#2a1a3a"/><circle cx="94" cy="186" r="1.5" fill="#2a1a3a"/>
+</svg>

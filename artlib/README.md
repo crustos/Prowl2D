@@ -114,3 +114,10 @@ These are my assignments of the Byzantine Musical Symbols, one file each: rename
 sunglasses, a cat, a queen, a tired face, an imp and an angel. The outlines are plain ASCII art, a closed line each.
 
 Try one: `python3 -m kaomojilang tools/kaomojilang/examples/face_5_artlib.kmj --svg out/` (from `tools/`).
+
+## Scenery: 🚽 the toilet on the pipes
+
+`🚽.svg` is the big toilet (seat up, mud brimming over the rim, a drain stub at the foot) and `🚽.py` builds the picture around it: the toilet sits on top of
+the main pipe, which drops to a flared spout (where the mud pours onto the singer), and a tangle of pipes comes in from the left and from above, T-ing into the main pipe,
+with flanges, bolts, rust and drips; two pipes go up through the tank. `seed` picks how many pipes there are and where they run. The picture is 22 x 28 units;
+the pipes leave it at the left and the top for the scenery to carry on, and the spout is at 68% of the width, at the bottom.
