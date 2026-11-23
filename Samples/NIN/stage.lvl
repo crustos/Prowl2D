@@ -1,0 +1,179 @@
+## NIN, scene 1: a stage at the mouth of a sewer. The tunnel drains over a lip into a ditch; the band and the audience are covered in mud and worms.
+## Rain. Run  python3 make_assets.py  first (it draws the frames in svg/).
+##   python3 ../../tools/levelang scene stage.lvl --sheet /tmp/stage.png --at 0,6,12,18
+##   python3 ../../tools/levelang export-html stage.lvl -o stage.html
+meta(width=130, height=58)
+background("#222a30", "#4c5448")
+
+W, H = 130, 58
+DECK = 48                       ## the top of the stage floor (concrete)
+BANK = 53                       ## the top of the ditch's mud
+LIP = 56                        ## x where the stage ends and the ditch begins
+SVG = "svg/"
+
+## ---------------------------------------------------------------- tiles
+def 🧱 -> fill("#5d6164"), solid:
+
+def 🟫 -> fill("#33241a"), solid:
+
+def 🔲 -> svg:
+<svg viewBox="0 0 1 1"></svg>
+
+def 🪟 -> svg(SVG + "wall.svg"), bg, size(52, 46):
+
+def 🚰 -> svg(SVG + "pipes.svg"), bg, size(35, 33):
+
+## the muddy water (seamless: 8 cells wide), the stream over the lip, rain, worms
+def 🌊 -> svgs(SVG + "mud_*.svg", fps=8), size(8, 2):
+
+def 💧 -> svgs(SVG + "fall_*.svg", fps=12), size(2, 8):
+
+def 🌧 -> svgs(SVG + "rain_near_*.svg", fps=12), size(120, 66):
+
+def 🌦 -> svgs(SVG + "rain_far_*.svg", fps=12), size(120, 66):
+
+def 🪱 -> svgs(SVG + "worm_0_*.svg", fps=8), size(1.8, 0.6):
+
+def 🐛 -> svgs(SVG + "worm_1_*.svg", fps=8), size(1.8, 0.6):
+
+def 🦠 -> svgs(SVG + "worm_2_*.svg", fps=8), size(1.8, 0.6):
+
+## the audience (6 people, 8 frames of dance each) and the band
+def 🧟 -> svgs(SVG + "crowd_0_*.svg", fps=8), size(2.4, 3.4):
+
+def 🧛 -> svgs(SVG + "crowd_1_*.svg", fps=8), size(2.4, 3.4):
+
+def 🧙 -> svgs(SVG + "crowd_2_*.svg", fps=8), size(2.4, 3.4):
+
+def 🧝 -> svgs(SVG + "crowd_3_*.svg", fps=8), size(2.4, 3.4):
+
+def 🧞 -> svgs(SVG + "crowd_4_*.svg", fps=8), size(2.4, 3.4):
+
+def 🧜 -> svgs(SVG + "crowd_5_*.svg", fps=8), size(2.4, 3.4):
+
+def 🎸 -> svgs(SVG + "band_guitar_*.svg", fps=8), size(5.5, 7.8):
+
+def 🪕 -> svgs(SVG + "band_bass_*.svg", fps=8), size(5.5, 7.8):
+
+def 🥁 -> svgs(SVG + "band_drums_*.svg", fps=8), size(6.0, 8.5):
+
+def 🎹 -> svgs(SVG + "band_keys_*.svg", fps=8), size(5.5, 7.8):
+
+def 🎤 -> kmj("kmj/singer.kmj", "singer", fps=8, seconds=60, speed=2, margin=0), size(14, 11):
+
+## the back rows are drawn simpler (a third of the shapes) and with 4 frames: there are many of them
+def 🐒 -> svgs(SVG + "crowdfar_0_*.svg", fps=6), size(2.4, 3.4):
+
+def 🦍 -> svgs(SVG + "crowdfar_1_*.svg", fps=6), size(2.4, 3.4):
+
+def 🦧 -> svgs(SVG + "crowdfar_2_*.svg", fps=6), size(2.4, 3.4):
+
+def 🐵 -> svgs(SVG + "crowdfar_3_*.svg", fps=6), size(2.4, 3.4):
+
+def 🙈 -> svgs(SVG + "crowdfar_4_*.svg", fps=6), size(2.4, 3.4):
+
+def 🙉 -> svgs(SVG + "crowdfar_5_*.svg", fps=6), size(2.4, 3.4):
+
+CROWD = [🧟, 🧛, 🧙, 🧝, 🧞, 🧜]
+CROWD_FAR = [🐒, 🦍, 🦧, 🐵, 🙈, 🙉]
+WORMS = [🪱, 🐛, 🦠]
+
+## ---------------------------------------------------------------- the ground
+place(🔲, 0, 0)
+place(🔲, W - 1, H - 1)
+for cx in range(0, LIP):                           ## the stage floor and what is under it
+    for cy in range(DECK, H):
+        place(🧱, cx, cy)
+for cx in range(LIP, W):                           ## the ditch
+    for cy in range(BANK, H):
+        place(🟫, cx, cy)
+for cy in range(DECK, BANK):                       ## the lip of the stage is the ditch's wall
+    place(🧱, LIP, cy)
+skin(🧱, wobble=0.03, corner=0.12, outline="#26282a", outline_width=0.1, seed=2)
+skin(🟫, wobble=0.18, outline="#1d130c", outline_width=0.12, seed=5)
+
+## ---------------------------------------------------------------- scenery behind (layers: far, the wall and the pipes, the audience)
+def ⬛ -> fill("#12161a"), bg:
+
+seed(4)
+with layer("skyline", parallax=0.2, parallax_y=1.0, haze=("#46504a", 0.3)):         ## a far industrial skyline in the rain: blocks and chimneys
+    cx = -10
+    while cx < 150:
+        w = 3 + rand() * 6
+        place(⬛, cx, 30 - rand() * 12, size=(w, 40))
+        if chance(0.3):
+            place(⬛, cx + w * 0.4, 14 + rand() * 6, size=(1.1, 30))
+        cx += w + rand() * 2
+
+with layer("wall", parallax=1.0):
+    place(🪟, 6, 2)                                  ## the concrete headwall with the arched mouth (the mouth spans x 13..51, y 6..48)
+    place(🚰, 8, 3)                                  ## the toilet on its pipes; its spout (x 36, y 36) is where the singer's mud will come from
+
+## the ground the audience stands on rises away from the ditch: three steps of mud, the farther the darker
+def 🟤 -> fill("#4a4034"), bg:
+
+def 🟠 -> fill("#37302a"), bg:
+
+with layer("hill", parallax=1.0):
+    place(🟠, LIP + 1, BANK - 3.4, size=(W - LIP - 1, 4))
+    place(🟤, LIP + 1, BANK - 1.7, size=(W - LIP - 1, 2.5))
+
+seed(8)
+FOOT = 0.98                                         ## the feet are at 98% of a figure's height
+def standing(tile, x, feet, h, flip=True):
+    place(tile, x, feet - FOOT * h, size=(h * 0.704, h), flip=flip)
+
+with layer("crowd_far", parallax=1.0, haze=("#37302a", 0.3)):          ## the back rows are smaller, higher, a little lost in the rain
+    for cx in range(LIP + 4, W - 1):
+        if chance(0.8):
+            standing(choice(CROWD_FAR), cx + rand() * 0.6, BANK - 2.6, 1.7 + rand() * 0.3)
+with layer("crowd_mid", parallax=1.0, haze=("#37302a", 0.12)):
+    for cx in range(LIP + 3, W - 1):
+        if chance(0.8):
+            standing(choice(CROWD_FAR), cx + rand() * 0.7, BANK - 1.0, 2.3 + rand() * 0.4)
+with layer("crowd_near", parallax=1.0):
+    for cx in range(LIP + 2, W - 1, 2):
+        if chance(0.88):
+            standing(choice(CROWD), cx + rand() * 1.1, BANK + 0.5, 3.1 + rand() * 0.5, flip=chance(0.9))
+
+## ---------------------------------------------------------------- in front of the stage's floor (what moves)
+for cx in range(0, LIP, 8):                        ## the mud that has run across the floor
+    place(🌊, cx, DECK - 1.15)
+for cy in range(DECK - 1, BANK - 1, 8):             ## and falls over the lip in a stream
+    place(💧, LIP - 1, cy)
+for cx in range(LIP, W, 8):                        ## the ditch is a river of mud
+    place(🌊, cx, BANK - 1.2)
+seed(21)
+for i in range(14):                                 ## worms on the floor and on the bank
+    place(choice(WORMS), 4 + rand() * (LIP - 10), DECK - 0.8 + rand() * 0.3, flip=chance(0.5))
+for i in range(10):
+    place(choice(WORMS), LIP + 3 + rand() * (W - LIP - 8), BANK - 0.9, flip=chance(0.5))
+
+with layer("band", parallax=1.0, over=True):        ## the band on the stage, over the floor (the singer is in the middle, under the spout)
+    place(🥁, 15, DECK - 8.0)
+    place(🎸, 24, DECK - 7.4)
+    place(🎹, 47, DECK - 7.4, flip=True)
+    place(🪕, 52, DECK - 7.4, flip=True)
+    place(🎤, 27, DECK - 10.2)
+
+with layer("rain_far", parallax=0.0, over=True):    ## the rain stays on the screen: far drops, small and pale; then near ones, big and quick
+    place(🌦, 0, 0, size=(120, 66))
+with layer("rain_near", parallax=0.0, over=True):
+    place(🌧, 0, 0, size=(120, 66))
+
+## ---------------------------------------------------------------- the scene (a wide shot, then a few closer)
+scene("stage", seconds=24, fps=12, view=(40, 22), bpm=140)
+rain(1.0)                              ## the HTML page draws the rain itself (the layers named rain_* are for the GIF preview)
+cam(0, 50, 40, 0.5)                    ## wide: the stage, the mouth, the pipes, and the ditch full of people
+cam(6, 52, 40, 0.5)
+cam(10, 38, 40, 1.0)                   ## the band
+cam(15, 36, 29, 1.0)                   ## up the pipes to the toilet
+cam(19, 70, 45, 1.25)                  ## over the audience
+cam(24, 62, 42, 0.55)
+fx(0, 24, "vignette", 1.0)
+fx(0, 24, "grain", 0.4)
+
+## the random director (open the exported page with  #chaos=7  ; see tools/levelang/README.md): where to cut, who gets smashed, where the pit is
+chaos(shots=[(50, 40, 0.5), (38, 40, 1.0), (36, 29, 1.0), (70, 46, 1.2), (62, 43, 0.6), (20, 41, 1.3), (36, 22, 0.8)],
+      singer=(34, 43), band={"guitar": 🎸, "bass": 🪕, "keys": 🎹, "drums": 🥁}, pit=(LIP + 3, W - 4, BANK + 0.5), crowd=CROWD,
+      lights=[(16, 6), (36, 4), (52, 6)], floor=DECK, grain=0.35)
