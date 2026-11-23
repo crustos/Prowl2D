@@ -95,3 +95,36 @@ class KmjExampleTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(HAVE, "tools/kaomojilang missing")
+class AnimatedKmjTests(unittest.TestCase):
+    """kmj("file", "shape", fps=4, seconds=4): frame k is the drawing at t = k / fps (CSS @keyframes / layer animation)."""
+
+    SRC = ('@keyframes rise { from { shift: 0 -6 } to { shift: 0 0 } }\n'
+           'def thing:\n    layer body\n         10    12\n         14    16\n'
+           '    layer mud(shift=(0, -6), animation="rise 4s linear forwards")\n     20  22\n     24  26\n')
+
+    def test_the_tile_draws_its_frames_when_asked(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "thing.kmj")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(self.SRC)
+            lv = run(f'def M -> kmj("{path}", "thing", fps=4, seconds=4), size(2, 2):\n\nplace(M, 0, 0)\n')
+            t = lv.placements[0].tile
+            self.assertEqual((len(t.frames), t.fps, t.animated), (16, 4, True))
+            self.assertNotEqual(t.frame_svg(0.0), t.frame_svg(3.0))                    # the mud has risen
+            vb = {t.frames[i].split('viewBox="')[1].split('"')[0] for i in (0, 7, 15)}
+            self.assertEqual(len(vb), 1)                                               # one canvas
+            self.assertEqual(t.frame_svg(1.0), t.frames[4])
+
+    def test_speed_stretches_the_time_of_the_animation(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "thing.kmj")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(self.SRC)
+            slow = run(f'def M -> kmj("{path}", "thing", fps=4, seconds=16, speed=0.25), size(2, 2):\n\nplace(M, 0, 0)\n').placements[0].tile
+            fast = run(f'def M -> kmj("{path}", "thing", fps=4, seconds=4), size(2, 2):\n\nplace(M, 0, 0)\n').placements[0].tile
+            self.assertEqual(slow.frames[12], fast.frames[3])                                                  # 3s of a 4s story, in 12s
