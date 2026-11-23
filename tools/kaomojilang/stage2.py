@@ -8,13 +8,14 @@ or names starting with a double underscore (except the helpers that stage 1 gene
 import ast
 import math
 import random as _random
+import sys
 import traceback
 
-from . import runtime
+from . import markup as htmllib, runtime
 from .errors import RunError, Stage2Error
 from .stage1 import demangle, mangle_symbols, translate
 
-HELPERS = ("__shape__", "__defaults__", "__kaomoji__")
+HELPERS = ("__shape__", "__defaults__", "__kaomoji__", "__html__", "__vars__")
 
 ALLOWED = (
     ast.Module, ast.FunctionDef, ast.arguments, ast.arg, ast.Return, ast.Assign, ast.AugAssign, ast.Expr,
@@ -154,6 +155,12 @@ class Program:
                 found[display] = self.call(display)
         return found
 
+    def frames(self, name, fps=24, duration=1.0, *args, start=0.0, speed=1.0, **kwargs):
+        """The Shapes of an animated drawing, one per frame: `t = start + k / fps * speed` for `duration` seconds of the output
+        (use `runtime.union_bbox(frames)` to frame them all the same)."""
+        n = max(1, int(round(duration * fps)))
+        return [self.call(name, *args, t=start + k / fps * speed, **kwargs) for k in range(n)]
+
     def render_svgs(self, folder, cell=10.0, margin=1.0):
         """Write every drawing to `folder`; lists become name_000.svg ... with a shared framing."""
         import os
@@ -180,8 +187,10 @@ def make_namespace(kaomoji_list, res, filename="<kaomoji>", artlib_dirs=()):
     ns.update(runtime.SIZES)
     ns.update(MATH)
     ns["random"] = _random.random
-    env = runtime.Env(ns, filename, artlib_dirs)
-    ns["__shape__"] = lambda grid, name, params, defaults, cells=(): runtime.build_shape(grid, name, params, defaults, cells, env)
+    env = runtime.Env(ns, filename, artlib_dirs, res.keyframes)
+    ns["__shape__"] = lambda grid, name, params, defaults, cells=(), layers=(): runtime.build_shape(grid, name, params, defaults, cells, layers, env)
+    ns["__html__"] = lambda template, name, scope, params, defaults: htmllib.build_html(template, name, scope, params, defaults, env)
+    ns["__vars__"] = lambda: dict(sys._getframe(1).f_locals)         # the variables of the def that calls it (the template's scope)
     ns["__defaults__"] = runtime.defaults_of
     ns["__kaomoji__"] = lambda text, label="": kaomoji_list.append(
         Kaomoji(text, label, next((l for t, lb, l in res.kaomoji if t == text and lb == label), None)))
