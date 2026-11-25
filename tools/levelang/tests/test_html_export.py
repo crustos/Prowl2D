@@ -125,5 +125,15 @@ chaos(shots=[(4, 3, 0.8)], singer=(3, 4), band={"guitar": A}, pit=(2, 9, 6), cro
         self.assertIn("window.Chaos", h)
         self.assertIn("#grid=", h)
 
+    def test_chaos_hardware_speakers_and_mud(self):
+        src = self.SRC.replace('def Q -> svgs("x_*.svg", fps=4):\n', "").replace("floor=6, rate=2.0)", 'floor=6, smash_at={"guitar": (5, 5)}, rigs=[(1, 2, 3, 2)], feedback=(P, 5, 5, 4), throw=1.5)')
+        sc = run(src).scene
+        self.assertEqual(sc.chaos["throw"], 1.5)
+        ch = show_of(page([run(src)]))["scenes"][0]["chaos"]
+        self.assertEqual(ch["smash_at"]["guitar"], [5, 5])
+        self.assertEqual(ch["rigs"], [[1, 2, 3, 2]])
+        self.assertEqual(ch["feedback"][1:], [5, 5, 4])
+        self.assertEqual(ch["throw"], 1.5)
+
     def test_no_chaos_without_the_call(self):
         self.assertIsNone(show_of(page([lvl("one")]))["scenes"][0]["chaos"])
