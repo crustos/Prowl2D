@@ -37,6 +37,7 @@ function prepare(sc, idx) {
     bandDyn[role] = sc.dyn.filter((d) => d.tile === tile);
     for (const d of bandDyn[role]) members.push([d.x + d.w / 2, d.y + d.h / 2]);
   }
+  const rigs = cfg.rigs || [], fbk = cfg.feedback;
   const ev = [];
   const person = () => (crowd ? pick(crowd) : null);
   // ---- events with something to look at: fights, jumpers, surfers, smashes
@@ -56,14 +57,41 @@ function prepare(sc, idx) {
     }
   }
   ev.sort((a, b) => a.t - b.t);
+  // ---- mud: volleys thrown from the crowd at the crowd, at the band and at the stage (not events the camera waits for: they are everywhere)
+  const vol = [];
+  const throwRate = (cfg.throw || 0) * rate;
+  if (pit && throwRate > 0) {
+    const targetsBand = members.length ? members : [];
+    for (let t = rr(0, 0.6); t < T; t += rr(0.5, 1.6) / throwRate) {
+      const sx = rr(pit[0] + 1, pit[1] - 1), sy = pit[2] - rr(1.8, 3.4), n = 3 + Math.floor(R() * 4);
+      const kind = R() < 0.4 && targetsBand.length ? "band" : R() < 0.7 ? "crowd" : "stage";
+      const balls = [];
+      for (let i = 0; i < n; i++) {
+        let tx, ty;
+        if (kind === "band") { const m = pick(targetsBand); tx = m[0] + rr(-1.2, 1.2); ty = m[1] + rr(-1.5, 1.5); }
+        else if (kind === "stage" && cfg.floor != null) { tx = rr(2, Math.max(6, pit[0] - 3)); ty = cfg.floor - rr(0, 1); }
+        else { tx = sx + rr(-14, 14); ty = pit[2] - rr(1.5, 3.4); }
+        const T1 = rr(0.45, 0.85) * (1 + Math.abs(tx - sx) / 60);
+        balls.push({ x0: sx + rr(-1.2, 1.2), y0: sy + rr(-0.5, 0.5), tx, ty, T1, d: i * rr(0.05, 0.14), r: rr(0.25, 0.5), s: R() * 1e6 });
+      }
+      vol.push({ t, balls, kind });
+    }
+  }
+  const fb = [];
+  if (fbk) for (let u = rr(0.2, 1.5); u < T; u += rr(1.2, 3.5) / rate) { fb.push({ t: u, d: rr(0.4, 1.8) }); u += 0; }
   // ---- camera: cuts, drifts, punches, shakes, tilts
   const wide = cfg.shots || [];
   const shot = () => {
     const k = R();
-    if (k < 0.2 && wide.length) { const s = pick(wide); return [s[0] + rr(-3, 3), s[1] + rr(-2, 2), s[2] * rr(0.85, 1.2)]; }
-    if (k < 0.38 && cfg.singer) return [cfg.singer[0] + rr(-1.5, 1.5), cfg.singer[1] + rr(-1.5, 1.5), rr(1.3, 2.8)];
-    if (k < 0.58 && members.length) { const m = pick(members); return [m[0] + rr(-1, 1), m[1] + rr(-1, 1), rr(1.4, 2.8)]; }
-    if (k < 0.85 && pit) return [rr(pit[0], pit[1]), pit[2] - 3 + rr(-1, 1), rr(0.9, 2.2)];
+    if (rigs.length && k < 0.24) {                     // close on the hands: the knobs, sliders and pads of a rig
+      const r = pick(rigs), zoom = (sc.view[0] / (r[2] * rr(0.55, 1.1)));
+      return [r[0] + r[2] * rr(0.25, 0.75), r[1] + r[3] * rr(0.4, 0.75), zoom];
+    }
+    if (fbk && k < 0.3) return [fbk[1] + rr(-1.5, 1.5), fbk[2] + rr(-1, 2), rr(1.6, 3.2)];      // the guitarist and his speaker
+    if (k < 0.4 && wide.length) { const s = pick(wide); return [s[0] + rr(-3, 3), s[1] + rr(-2, 2), s[2] * rr(0.85, 1.2)]; }
+    if (k < 0.5 && cfg.singer) return [cfg.singer[0] + rr(-1.5, 1.5), cfg.singer[1] + rr(-1.5, 1.5), rr(1.3, 2.8)];
+    if (k < 0.66 && members.length) { const m = pick(members); return [m[0] + rr(-1, 1), m[1] + rr(-1, 1), rr(1.4, 2.8)]; }
+    if (k < 0.88 && pit) return [rr(pit[0], pit[1]), pit[2] - 3 + rr(-1, 1), rr(0.9, 2.2)];
     return [rr(0, W), rr(0, H), rr(0.5, 1.4)];
   };
   let t = 0, ei = 0;
@@ -115,13 +143,16 @@ function prepare(sc, idx) {
       sc.shakes.push([hit, hit + 0.35, rr(0.4, 0.9)]); sc.punches.push([hit, 0.2, 0.25]); sc.fades.push([hit, hit + 0.1, 0.8, 0, "white"]);
       sc.fx.push([hit, hit + 0.15, "rgb", 1.4]);
       e.hit = hit;
+      if (cfg.smash_at && cfg.smash_at[e.role] && cfg.feedback) fb.push({ t: hit - 0.1, d: 1.4 });
     } else if (e.k === "fight") { sc.shakes.push([e.t + 0.15, e.t + 0.15 + e.d * 0.6, 0.25]); }
   }
   sc.shakes.sort((a, b) => a[0] - b[0]);
   if (P.has("calm")) { sc.fx = o.fx.slice(); sc.fades = o.fades.slice(); washes.length = 0; strobes.length = 0; }       // debugging: just the props
   if (P.has("lock")) { const [lx, ly, lz] = P.get("lock").split(",").map(Number); sc.cams = [[0, lx, ly, lz, "cut"]]; sc.punches = []; sc.shakes = []; }
   sc.seconds = T;
-  C = { sc, cfg, ev, beams, washes, strobes, hidden: new Set() };
+  for (const f of fb) sc.shakes.push([f.t, f.t + f.d, 0.12]);
+  sc.shakes.sort((a, b) => a[0] - b[0]);
+  C = { sc, cfg, ev, vol, fb, beams, washes, strobes, hidden: new Set() };
 }
 
 // ------------------------------------------------------------------------------------------------------------------------ drawing the props
@@ -232,11 +263,12 @@ function draw(S, t, cam) {
       if (e.role === "guitar" || e.role === "bass") {
         const L = d.h * 0.5, col = e.role === "guitar" ? "#c0302a" : "#2a6fc0";
         const hx = bx + s * d.w * 0.15, hy = by - d.h * 0.1;
+        const at = C.cfg.smash_at && C.cfg.smash_at[e.role];
         if (u < hu) {                                     // raised, then swung down
           const k = u / hu, ang = k < 0.7 ? lerp(10, -110, k / 0.7) : lerp(-110, 55, (k - 0.7) / 0.3);
           over.push(guitar(hx, hy - (k < 0.7 ? k * 2 : 1.4), L, ang, col, d.flip));
         } else if (u <= 1.6) {
-          const v = (u - hu) * e.d, ix = hx + s * L * 0.8, iy = d.y + d.h * 0.95;
+          const v = (u - hu) * e.d, ix = at ? at[0] : hx + s * L * 0.8, iy = at ? at[1] : d.y + d.h * 0.95;
           if (v < 0.14) over.push(`<circle cx="${f1(ix)}" cy="${f1(iy)}" r="${f1(0.8 + v * 22)}" fill="#fffbe0" stroke="#ffd030" stroke-width="0.25"/>`);
           for (let i = 0; i < 12; i++) { const a = R() * TAU, r1 = 0.4 + v * 18 * (0.5 + R()); if (v < 0.4) over.push(`<line x1="${f1(ix + Math.cos(a) * 0.5)}" y1="${f1(iy + Math.sin(a) * 0.5)}" x2="${f1(ix + Math.cos(a) * r1)}" y2="${f1(iy + Math.sin(a) * r1)}" stroke="#ffe030" stroke-width="0.14" stroke-linecap="round"/>`); }
           const vxA = -s * (6 + R() * 8), vxB = s * (7 + R() * 9);
@@ -265,6 +297,35 @@ function draw(S, t, cam) {
           for (let i = 0; i < 5; i++) { const [px, py] = ARC(ix, iy, (R() - 0.5) * 28, -10 - R() * 14, v); over.push(`<line x1="${f1(px)}" y1="${f1(py)}" x2="${f1(px + Math.cos(v * 20 * (i + 1)) * 2.4)}" y2="${f1(py + Math.sin(v * 20 * (i + 1)) * 2.4)}" stroke="#c9a46a" stroke-width="0.22" stroke-linecap="round"/>`); }
         }
       }
+    }
+  }
+  // flying mud
+  for (const V of C.vol) {
+    if (t < V.t || t > V.t + 2.4) continue;
+    for (const b of V.balls) {
+      const v = t - V.t - b.d;
+      if (v < 0) continue;
+      if (v < b.T1) {
+        const g = 44, vx = (b.tx - b.x0) / b.T1, vy = (b.ty - b.y0) / b.T1 - 0.5 * g * b.T1;
+        const [px, py] = ARC(b.x0, b.y0, vx, vy, v);
+        o.push(`<ellipse cx="${f1(px)}" cy="${f1(py)}" rx="${f1(b.r * 1.15)}" ry="${f1(b.r)}" fill="#4a3018" stroke="${DARK}" stroke-width="0.07" transform="rotate(${f1(v * 700)} ${f1(px)} ${f1(py)})"/><circle cx="${f1(px - b.r * 0.3)}" cy="${f1(py - b.r * 0.3)}" r="${f1(b.r * 0.25)}" fill="#8a6a3e"/>`);
+        const [qx, qy] = ARC(b.x0, b.y0, vx, vy, Math.max(0, v - 0.03));
+        o.push(`<line x1="${f1(qx)}" y1="${f1(qy)}" x2="${f1(px)}" y2="${f1(py)}" stroke="#4a3018" stroke-width="${f1(b.r * 0.8)}" stroke-linecap="round" opacity="0.35"/>`);
+      } else {                                              // splat: drops fly off the target, a stain stays a moment
+        const w2 = v - b.T1;
+        if (w2 < 0.5) o.push(splat(b.tx, b.ty, w2, 7, b.s));
+        if (w2 < 1.4) o.push(`<ellipse cx="${f1(b.tx)}" cy="${f1(b.ty)}" rx="${f1(b.r * 2.2)}" ry="${f1(b.r * 1.6)}" fill="#4a3018" stroke="${DARK}" stroke-width="0.06" opacity="${f1(Math.max(0, 1 - w2 / 1.4))}"/>`);
+      }
+    }
+  }
+  // feedback rings at the speaker
+  if (C.cfg.feedback) {
+    const [ft, fx, fy, fs] = C.cfg.feedback;
+    for (const f of C.fb) {
+      if (t < f.t || t > f.t + f.d) continue;
+      const id = frameId(ft, t - f.t);
+      if (id) over.push(`<g style="mix-blend-mode:screen"><use href="#${id}" x="${f1(fx - fs / 2)}" y="${f1(fy - fs / 2)}" width="${f1(fs)}" height="${f1(fs)}"/></g>`);
+      break;
     }
   }
   // the drawn players are hidden while their replacements smash
