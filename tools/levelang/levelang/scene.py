@@ -362,13 +362,17 @@ def builtins(level) -> dict:
         (a parallax=0, over=True layer), and the HTML export leaves those layers out when ``rain()`` is set."""
         need().rain = float(amount)
 
-    def chaos(shots=None, floor=None, singer=None, pit=None, crowd=(), band=None, lights=None, rate=1.0, grain=0.4):
+    def chaos(shots=None, floor=None, singer=None, pit=None, crowd=(), band=None, lights=None, rate=1.0, grain=0.4, smash_at=None, rigs=None, feedback=None, throw=0.0):
         """Set up the random director of the HTML export (open it with ``#chaos=SEED``: fast random cuts and tilts, flashes, strobes, colour washes, beams, fights in the
         pit, guitars and keyboards smashed). ``shots``: [(x, y, zoom)] wide views to cut to; ``singer=(x, y)``; ``band={"guitar": tile, "bass": tile, "keys": tile, "drums": tile}``
         (the animated tiles placed for them: those get smashed); ``pit=(x0, x1, y)``: where the crowd stands (feet at y); ``crowd=[tiles]``: the people thrown around;
-        ``lights=[(x, y)]``: where the beams start; ``floor``: the stage's floor y; ``rate`` how dense the chaos is; ``grain`` the film grain over it."""
+        ``lights=[(x, y)]``: where the beams start; ``floor``: the stage's floor y; ``rate`` how dense the chaos is; ``grain`` the film grain over it.
+        ``smash_at={"guitar": (x, y)}``: a band member smashes his instrument on that point (a speaker's face) instead of the floor; ``rigs=[(x, y, w, h)]``: the synths and
+        drum machines, which the camera cuts to in close-ups of the hands; ``feedback=(tile, x, y, size)``: the animated feedback rings (a tile) that flare at that point (the speaker
+        the guitarist leans on) now and then; ``throw``: volleys of mud per second thrown from the crowd at the crowd, the band and the stage (0 for none)."""
         need().chaos = {"shots": [tuple(s) for s in (shots or [])], "floor": floor, "singer": singer, "pit": pit, "crowd": list(crowd), "band": dict(band or {}),
-                        "lights": [tuple(p) for p in (lights or [])], "rate": float(rate), "grain": float(grain)}
+                        "lights": [tuple(p) for p in (lights or [])], "rate": float(rate), "grain": float(grain),
+                        "smash_at": {k: tuple(v) for k, v in (smash_at or {}).items()}, "rigs": [tuple(r) for r in (rigs or [])], "feedback": feedback and tuple(feedback), "throw": float(throw)}
 
     def line(t, text, who=None, seconds=3.0):
         need().captions.append({"kind": "say", "t": float(t), "text": str(text), "who": who, "seconds": float(seconds)})
