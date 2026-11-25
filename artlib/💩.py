@@ -3,6 +3,8 @@
 `person(variant, phase, role)` is an SVG text (viewBox -8 -18 76 108, feet on y = 88). `variant` picks the figure (height, build, lean, mud colours,
 arms, where the worms sit), `phase` (0..1, loops) is the dance: bounce, head-banging, swinging arms, wriggling worms. `role`:
 "crowd" (one of the audience), "guitar", "bass", "drums", "keys" (the band: the instrument is drawn on the figure).
+`hunch` (0..1) rounds the back and drops the head into the shoulders under a curtain of muddy hair that whips about; `cycles` is how many bounces and head-bangs
+happen in one loop of `phase` (3 or 4 is fast); `throw=True` gives a crowd figure an arm that winds up and throws a lump of mud once per loop.
 `lod=1` is a simpler drawing for the far rows of a crowd (no mud drips, highlights or hands, two worms): a third of the shapes, so a hundred of them animate fast.
 `worm(variant, phase)` is one worm alone (viewBox 0 0 30 10) for the ground.
 
@@ -43,7 +45,7 @@ def _limb(x0, y0, x1, y1, w, fill):
             f'<line x1="{_f(x0)}" y1="{_f(y0)}" x2="{_f(x1)}" y2="{_f(y1)}" stroke="{fill}" stroke-width="{_f(w)}" stroke-linecap="round"/>')
 
 
-def person(variant=0, phase=0.0, role="crowd", lod=0):
+def person(variant=0, phase=0.0, role="crowd", lod=0, hunch=0.0, cycles=1, throw=False):
     r = random.Random(variant * 7919 + 13)
     body, dark, wet = r.choice(MUDS)
     head_c = r.choice(MUDS)[0]
@@ -51,8 +53,11 @@ def person(variant=0, phase=0.0, role="crowd", lod=0):
     ws = r.uniform(0.85, 1.2)                      # build
     lean = r.uniform(-7, 7)
     arms = r.choice(["up", "up", "one", "swing", "horns", "hug"]) if role == "crowd" else {"guitar": "play", "bass": "play", "keys": "type", "drums": "drum"}[role]
+    if throw and role == "crowd":
+        arms = "throw"
     scream = r.random() < 0.6
-    sp = TAU * phase
+    sp = TAU * phase * cycles                                   # the dance: `cycles` bounces / head-bangs per loop
+    wp = phase * cycles
     bounce = abs(math.sin(sp)) * (3.5 if role != "drums" else 1.5) * r.uniform(0.6, 1.3)
     bang = math.sin(2 * sp + r.random()) * 4                   # head-banging
     sway = math.sin(sp + r.random() * 6) * 4
@@ -68,8 +73,8 @@ def person(variant=0, phase=0.0, role="crowd", lod=0):
         out.append(_limb(-5 * ws, hip, -7 * ws, foot_y - 2, 6.5, dark) + _limb(5 * ws, hip, 7 * ws + math.sin(sp) * 1.5, foot_y - 2 - bounce * 0.2, 6.5, dark))
         out.append(f'<ellipse cx="{_f(-8 * ws)}" cy="{foot_y - 1}" rx="6" ry="3" fill="{dark}" stroke="{DARK}" stroke-width="1.6"/><ellipse cx="{_f(8 * ws)}" cy="{foot_y - 1 - bounce * 0.2:g}" rx="6" ry="3" fill="{dark}" stroke="{DARK}" stroke-width="1.6"/>')
     # ---- torso
-    top = hip - 30 * hs
-    sh = 12.5 * ws
+    top = hip - 30 * hs * (1 - 0.28 * hunch)                    # hunched: the back is rounded, the shoulders come up
+    sh = 12.5 * ws * (1 + 0.12 * hunch)
     out.append(f'<path d="M{_f(-9 * ws)} {_f(hip)} C{_f(-12 * ws)} {_f(hip - 10)} {_f(-sh - 1)} {_f(top + 10)} {_f(-sh)} {_f(top + 3)} Q{_f(-sh)} {_f(top - 2)} {_f(-6)} {_f(top - 2)} L{_f(6)} {_f(top - 2)} '
                f'Q{_f(sh)} {_f(top - 2)} {_f(sh)} {_f(top + 3)} C{_f(sh + 1)} {_f(top + 10)} {_f(12 * ws)} {_f(hip - 10)} {_f(9 * ws)} {_f(hip)} Z" fill="{body}" stroke="{DARK}" stroke-width="2.2" stroke-linejoin="round"/>')
     if not lod:
@@ -105,6 +110,13 @@ def person(variant=0, phase=0.0, role="crowd", lod=0):
     elif arms == "horns":
         for side in (-1, 1):
             m, h = arm(side, 145 + 8 * math.sin(2 * sp), 18); out.append(m); hands.append(h)
+    elif arms == "throw":                                        # one arm throws a lump of mud once per loop, the other swings
+        k = phase % 1.0
+        u = min(1.0, max(0.0, (k - 0.45) / 0.25))
+        m, h = arm(1, 215 - 125 * u * u * (3 - 2 * u), 24, 6.5); out.append(m)
+        if k < 0.62:
+            out.append(f'<circle cx="{_f(h[0])}" cy="{_f(h[1] - 3)}" r="5" fill="#4a3018" stroke="{DARK}" stroke-width="1.6"/><circle cx="{_f(h[0] - 1.5)}" cy="{_f(h[1] - 4.5)}" r="1.4" fill="#8a6a3e"/>')
+        m, h = arm(-1, 28 + 10 * math.sin(sp), 20); out.append(m)
     elif arms == "hug":
         for side in (-1, 1):
             m, h = arm(side, 118 + 4 * math.sin(sp), 16, 7); out.append(m)
@@ -122,6 +134,11 @@ def person(variant=0, phase=0.0, role="crowd", lod=0):
             m, h = arm(side, 140 + 30 * math.sin(2 * sp + (side > 0) * math.pi), 22); out.append(m)
     # ---- head
     hx, hy = sway * 0.3 + bang * 0.5, top - 10 * hs + bang * 0.4 + 2
+    nod = math.sin(sp + 0.6)
+    if hunch:                                                   # head down in the shoulders, banging hard
+        hy += 8 * hunch + 7 * hunch * nod
+        hx += 2 * hunch * math.sin(sp * 0.5)
+        out.append(f'<g transform="rotate({_f(30 * hunch * nod)} {_f(hx)} {_f(top)})">')
     out.append(f'<rect x="{_f(hx - 2.5)}" y="{_f(top - 6)}" width="5" height="6" fill="{dark}"/>')
     out.append(f'<ellipse cx="{_f(hx)}" cy="{_f(hy)}" rx="{_f(10.5 * ws)}" ry="11" fill="{head_c}" stroke="{DARK}" stroke-width="2.2"/>')
     out.append(f'<path d="M{_f(hx - 8 * ws)} {_f(hy - 4)} Q{_f(hx)} {_f(hy - 15)} {_f(hx + 8 * ws)} {_f(hy - 4)} Q{_f(hx)} {_f(hy - 9)} {_f(hx - 8 * ws)} {_f(hy - 4)} Z" fill="{dark}"/>')   # a mat of mud for hair
@@ -131,13 +148,23 @@ def person(variant=0, phase=0.0, role="crowd", lod=0):
         out.append(f'<ellipse cx="{_f(hx)}" cy="{_f(hy + 6)}" rx="3.4" ry="{_f(2.2 + 1.8 * abs(math.sin(sp)))}" fill="{DARK}"/>')
     else:
         out.append(f'<path d="M{_f(hx - 3.5)} {_f(hy + 6)} Q{_f(hx)} {_f(hy + 8)} {_f(hx + 3.5)} {_f(hy + 6)}" fill="none" stroke="{DARK}" stroke-width="1.6" stroke-linecap="round"/>')
+    if hunch:                                                   # matted, muddy locks hanging over the face, whipping with the head
+        sw = 10 * hunch * math.sin(sp - 0.8)
+        out.append(f'<path d="M{_f(hx - 10.5 * ws)} {_f(hy - 3)} Q{_f(hx)} {_f(hy - 18)} {_f(hx + 10.5 * ws)} {_f(hy - 3)} Q{_f(hx)} {_f(hy - 8)} {_f(hx - 10.5 * ws)} {_f(hy - 3)} Z" fill="{dark}" stroke="{DARK}" stroke-width="1.6"/>')
+        for i in range(7):
+            x0 = hx - 9 * ws + i * (18 * ws / 6)
+            L = (10 + 11 * hunch) * (0.7 + 0.3 * ((i * 37) % 5) / 4)
+            ex = x0 + sw * (0.45 + 0.3 * (i % 3)) + (i - 3) * 0.9
+            ey = hy - 4 + L
+            out.append(f'<path d="M{_f(x0 - 2.3)} {_f(hy - 5)} Q{_f(x0 + sw * 0.2)} {_f(hy + L * 0.4)} {_f(ex)} {_f(ey)} Q{_f(x0 + 1 + sw * 0.1)} {_f(hy + L * 0.3)} {_f(x0 + 2.3)} {_f(hy - 5)} Z" fill="{dark if i % 2 else body}" stroke="{DARK}" stroke-width="1.2" stroke-linejoin="round"/>')
+        out.append("</g>")
     # ---- worms: on the head and shoulders, hanging off the arms, a couple on the chest
     spots = [(hx + r.uniform(-8, 8), hy - 9 + r.uniform(0, 2), r.uniform(200, 340)) for _ in range(r.randint(1, 3))]
     spots += [(side * sx * r.uniform(0.6, 1.0), shoulder_y + 1, 90 + side * r.uniform(-20, 40)) for side in (-1, 1) if r.random() < 0.8]
     spots += [(h[0], h[1] + 2, 90 + r.uniform(-30, 30)) for h in hands[:1]]
     spots += [(r.uniform(-7, 7), top + r.uniform(8, 20), r.uniform(0, 360)) for _ in range(r.randint(1, 3))]
     for k, (x, y, a) in enumerate(spots[:2] if lod else spots):
-        out.append(_worm(x, y, a, r.uniform(8, 15), phase + k * 0.17, r.choice(WORMS), 2.4))
+        out.append(_worm(x, y, a, r.uniform(8, 15), wp + k * 0.17, r.choice(WORMS), 2.4))
     ang = lean * 0.7 + sway * 0.4
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -18 76 108" data-size="2.1,3"><g transform="translate(30 0) rotate({_f(ang)} 0 {foot_y})">'
             + "".join(out) + "</g></svg>")
