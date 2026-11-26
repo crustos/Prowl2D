@@ -399,7 +399,8 @@ class Runtime:
             raise TypeError(f"svgs needs a file pattern: svgs(\"svg/dance_*.svg\", fps=8), got {v!r}")
         t.fps = float(kw.pop("fps", 6))
         pat = args[0] if os.path.isabs(args[0]) else os.path.join(self.basedir, args[0])
-        files = sorted(glob.glob(pat))
+        import re as _re
+        files = sorted(glob.glob(pat), key=lambda q: [int(c) if c.isdigit() else c for c in _re.split(r"(\d+)", q)])     # natural order: _2 before _10
         if not files:
             raise FileNotFoundError(f"svgs({args[0]!r}): no file matches (run the script that draws them?)")
         frames = []
