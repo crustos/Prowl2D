@@ -84,6 +84,18 @@ class HtmlExportTests(unittest.TestCase):
         self.assertEqual(show_of(h)["scenes"][0]["captions"][0]["text"], "a</script>b")
         self.assertEqual(h.count("</script>"), 3)     # the data, the director, the player
 
+    def test_svgs_frames_are_in_natural_order(self):
+        from levelang import load_file
+        with tempfile.TemporaryDirectory() as d:
+            for i in (0, 1, 2, 10, 11):
+                with open(os.path.join(d, f"f_{i}.svg"), "w") as fh:
+                    fh.write(f'<svg viewBox="0 0 1 1"><!--{i}--></svg>')
+            with open(os.path.join(d, "t.lvl"), "w") as fh:
+                fh.write('def Z -> svgs("f_*.svg", fps=4):\n\nplace(Z, 0, 0)\n')
+            lv = load_file(os.path.join(d, "t.lvl"))[0]
+            tile = next(p.tile for p in lv.placements if getattr(p.tile, "frames", None))
+            self.assertEqual([re.search(r"<!--(\d+)-->", fr).group(1) for fr in tile.frames], ["0", "1", "2", "10", "11"])
+
     def test_sample_intro(self):
         sample = REPO / "Samples" / "SlimeJumpLoveStory"
         from levelang import load_file
@@ -126,7 +138,7 @@ chaos(shots=[(4, 3, 0.8)], singer=(3, 4), band={"guitar": A}, pit=(2, 9, 6), cro
         self.assertIn("#grid=", h)
 
     def test_chaos_hardware_speakers_and_mud(self):
-        src = self.SRC.replace('def Q -> svgs("x_*.svg", fps=4):\n', "").replace("floor=6, rate=2.0)", 'floor=6, smash_at={"guitar": (5, 5)}, rigs=[(1, 2, 3, 2)], feedback=(P, 5, 5, 4), throw=1.5)')
+        src = self.SRC.replace('def Q -> svgs("x_*.svg", fps=4):\n', "").replace("floor=6, rate=2.0)", 'floor=6, smash_at={"guitar": (5, 5)}, rigs=[(1, 2, 3, 2)], feedback=(P, 5, 5, 4), throw=1.5, rooms=[(1, -9, 4, 3)])')
         sc = run(src).scene
         self.assertEqual(sc.chaos["throw"], 1.5)
         ch = show_of(page([run(src)]))["scenes"][0]["chaos"]
@@ -134,6 +146,8 @@ chaos(shots=[(4, 3, 0.8)], singer=(3, 4), band={"guitar": A}, pit=(2, 9, 6), cro
         self.assertEqual(ch["rigs"], [[1, 2, 3, 2]])
         self.assertEqual(ch["feedback"][1:], [5, 5, 4])
         self.assertEqual(ch["throw"], 1.5)
+        self.assertEqual(len(ch["rooms"]), 1)
+        self.assertEqual(ch["rooms"][0][2:], [4, 3])
 
     def test_no_chaos_without_the_call(self):
         self.assertIsNone(show_of(page([lvl("one")]))["scenes"][0]["chaos"])
