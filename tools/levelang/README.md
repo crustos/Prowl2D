@@ -197,7 +197,7 @@ JavaScript drives the camera (keys, eases, `punch`, `shake`, zoom, clamped like 
 
 ### The chaos director: random takes to record
 
-`chaos(...)` in a `scene()` sets up a random director in the exported page (see its docstring in `scene.py`: wide `shots`, the `singer`, the `band` tiles that get smashed, the crowd `pit`, the `crowd` tiles, `lights`; and `smash_at={"guitar": (x, y)}` to smash an instrument on a speaker, `rigs=[(x, y, w, h)]` for close-ups of the hands on synths and drum machines, `feedback=(tile, x, y, size)` for feedback rings, and `throw=1.5` for volleys of mud from the crowd at the crowd, the band and the stage). It does nothing until the page is opened with a seed:
+`chaos(...)` in a `scene()` sets up a random director in the exported page (see its docstring in `scene.py`: wide `shots`, the `singer`, the `band` tiles that get smashed, the crowd `pit`, the `crowd` tiles, `lights`; and `smash_at={"guitar": (x, y)}` to smash an instrument on a speaker, `rigs=[(x, y, w, h)]` for close-ups of the hands on synths and drum machines, `feedback=(tile, x, y, size)` for feedback rings, `throw=1.5` for volleys of mud from the crowd at the crowd, the band and the stage, and `rooms=[(x, y, w, h)]` for sets of their own (a big face, a wall of screens) that the camera cuts to, framed to fill the screen). It does nothing until the page is opened with a seed:
 
 | URL | |
 |---|---|
