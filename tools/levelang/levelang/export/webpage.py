@@ -298,7 +298,8 @@ def _scene(level: Level, tiles: Tiles, sid: int, warn) -> dict:
                  "crowd": [tiles.of(t) for t in ch["crowd"]], "band": {k: tiles.of(t) for k, t in ch["band"].items()},
                  "lights": [[p[0] - x0, p[1] - y0] for p in ch["lights"]], "rate": ch["rate"], "grain": ch["grain"],
                  "smash_at": {k: [v[0] - x0, v[1] - y0] for k, v in ch.get("smash_at", {}).items()}, "rigs": [[r[0] - x0, r[1] - y0, r[2], r[3]] for r in ch.get("rigs", [])],
-                 "feedback": ch.get("feedback") and [tiles.of(ch["feedback"][0]), ch["feedback"][1] - x0, ch["feedback"][2] - y0, ch["feedback"][3]], "throw": ch.get("throw", 0.0)}
+                 "feedback": ch.get("feedback") and [tiles.of(ch["feedback"][0]), ch["feedback"][1] - x0, ch["feedback"][2] - y0, ch["feedback"][3]], "throw": ch.get("throw", 0.0),
+                 "rooms": [[r[0] - x0, r[1] - y0, r[2], r[3]] for r in ch.get("rooms", [])]}
     data = {
         "chaos": chaos, "rain": sc.rain, "name": sc.name, "seconds": sc.seconds, "fps": sc.fps, "bpm": sc.bpm, "view": [vcols, vrows], "world": [cols, rows], "next": getattr(sc, "next", None),
         "cams": [[c[0], c[1] - x0, c[2] - y0, c[3], c[4]] for c in sc.cams], "punches": [list(p) for p in sc.punches], "shakes": [list(k) for k in sc.shakes],

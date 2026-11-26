@@ -80,9 +80,16 @@ function prepare(sc, idx) {
   const fb = [];
   if (fbk) for (let u = rr(0.2, 1.5); u < T; u += rr(1.2, 3.5) / rate) { fb.push({ t: u, d: rr(0.4, 1.8) }); u += 0; }
   // ---- camera: cuts, drifts, punches, shakes, tilts
-  const wide = cfg.shots || [];
+  const wide = cfg.shots || [], rooms = cfg.rooms || [];
   const shot = () => {
-    const k = R();
+    let k = R();
+    if (rooms.length) {
+      if (k < 0.14) {                    // a room of its own (a big face, a wall of screens): fill the frame exactly, zoomed in a little at times
+        const r = pick(rooms), z = Math.max(sc.view[0] / r[2], sc.view[1] / r[3]) * (R() < 0.5 ? 1 : rr(1, 1.5));
+        return [r[0] + r[2] / 2 + rr(-1, 1) * Math.max(0, (r[2] - sc.view[0] / z) / 2), r[1] + r[3] / 2 + rr(-1, 1) * Math.max(0, (r[3] - sc.view[1] / z) / 2), z];
+      }
+      k = (k - 0.14) / 0.86;                           // the other shots keep their odds
+    }
     if (rigs.length && k < 0.24) {                     // close on the hands: the knobs, sliders and pads of a rig
       const r = pick(rigs), zoom = (sc.view[0] / (r[2] * rr(0.55, 1.1)));
       return [r[0] + r[2] * rr(0.25, 0.75), r[1] + r[3] * rr(0.4, 0.75), zoom];
